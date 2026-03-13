@@ -1,0 +1,12 @@
+__pycache__/
+venv/
+.env
+faiss.index
+metadata.pkl
+models/
+llama.cpp/
+*.pyc
+.vscode/
+.idea/
+.DS_Store
+/tmp/llama_server.log
