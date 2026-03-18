@@ -3,7 +3,7 @@
 # FinChat Execution Script
 
 # CONFIGURATION
-MODEL_PATH="models/gemma-3-4b-it-q4_0.gguf"
+MODEL_PATH="models/gemma-3-1b-it-f16.gguf"
 SERVER_PORT=8080
 LOG_FILE="/tmp/llama_server.log"
 

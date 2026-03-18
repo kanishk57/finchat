@@ -103,6 +103,27 @@ function createNewSession() {
     renderChatArea();
 }
 
+function deleteSession(e, id) {
+    e.stopPropagation(); // Prevent switching to the session being deleted
+    
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this chat?')) return;
+
+    chatSessions = chatSessions.filter(s => s.id !== id);
+    
+    if (currentSessionId === id) {
+        if (chatSessions.length > 0) {
+            currentSessionId = chatSessions[0].id;
+        } else {
+            createNewSession();
+            return; // createNewSession calls save and render
+        }
+    }
+    
+    saveSessionsToStorage();
+    renderChatArea();
+}
+
 function switchSession(id) {
     if(id === currentSessionId) return;
     saveCurrentChat(); // Save the existing chat state first
@@ -149,13 +170,26 @@ function renderSidebarHistory() {
         const item = document.createElement('div');
         item.className = 'history-item';
         // Add active class if it's the current session
-        if(session.id === currentSessionId) item.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        if(session.id === currentSessionId) item.classList.add('active');
         
         item.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <svg class="chat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             <span>${session.title || 'Chat'}</span>
+            <button class="delete-chat-btn" title="Delete chat">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </button>
         `;
+        
         item.addEventListener('click', () => switchSession(session.id));
+        
+        const deleteBtn = item.querySelector('.delete-chat-btn');
+        deleteBtn.addEventListener('click', (e) => deleteSession(e, session.id));
+        
         listContainer.appendChild(item);
     });
 }
@@ -208,9 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderChatArea();
 });
 
+const chatContainerWrapper = document.querySelector('.chat-container-wrapper');
+
 function scrollToBottom() {
-    chatContainer.scrollTo({
-        top: chatContainer.scrollHeight,
+    chatContainerWrapper.scrollTo({
+        top: chatContainerWrapper.scrollHeight,
         behavior: 'smooth'
     });
 }
@@ -287,9 +323,9 @@ chatForm.addEventListener('submit', async (e) => {
                             aiContent.innerHTML = `<p>${formattedText}</p>` + citationsHtml;
                             
                             // Only scroll to bottom if we are already near it to not annoy the user
-                            const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+                            const isNearBottom = chatContainerWrapper.scrollHeight - chatContainerWrapper.scrollTop - chatContainerWrapper.clientHeight < 100;
                             if (isNearBottom) {
-                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                                chatContainerWrapper.scrollTop = chatContainerWrapper.scrollHeight;
                             }
                         } else if (data.type === 'done') {
                             // Stream completed, save history!
