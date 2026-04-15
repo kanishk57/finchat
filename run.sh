@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # FinChat Execution Script
+# Updated to work with refactored modular structure (v2.6.3)
 
 # CONFIGURATION
 MODEL_PATH="models/gemma-3-1b-it-f16.gguf"
@@ -13,7 +14,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Starting FinChat Optimized RAG ===${NC}"
+echo -e "${GREEN}=== Starting FinChat Optimized RAG (Modular v2.6.3) ===${NC}"
 
 # 0. Handle Arguments
 REBUILD=0
@@ -51,7 +52,7 @@ if [ $? -ne 0 ]; then
     if [ ! -f "$SERVER_BIN" ]; then
         SERVER_BIN="llama-server" 
     fi
-
+    
     $SERVER_BIN -m $MODEL_PATH --port $SERVER_PORT > "$LOG_FILE" 2>&1 &
     SERVER_PID=$!
     
@@ -74,6 +75,8 @@ fi
 
 # 3. Run the application
 echo -e "${YELLOW}[3/3] Launching FinChat Web Interface...${NC}"
+echo -e "${YELLOW}Note: Using modular server structure with separated concerns${NC}"
 uvicorn server:app --host 0.0.0.0 --port 8000
 
+# Deactivate virtual environment on exit
 deactivate

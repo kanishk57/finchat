@@ -3,95 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinChat - Analyst Framework</title>
-    <link rel="stylesheet" href="/static/style-v2.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div class="app-layout">
-        
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-top">
-                <button class="icon-btn" id="menuToggle" aria-label="Toggle menu">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            
-            <button class="new-chat-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>New chat</span>
-            </button>
-            
-            <div class="sidebar-recent">
-                <div class="recent-title">Recent</div>
-                <div class="history-list">
-                    <!-- History will be injected by JS -->
-                </div>
-            </div>
-        </aside>
+    <title>FinChat | Analysis Terminal</title>
+    
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script src="/static/tailwind.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#F43F5E",
+                        "background": "#131314",
+                        "sidebar": "#131314", 
+                        "surface": "#1e1f20",
+                        "surface-container": "#28292a",
+                        "outline-variant": "#333537",
+                        "text-main": "#e3e3e3",
+                        "text-subtle": "#c4c7c5"
+                    },
+                    fontFamily: { body: ["Inter", "sans-serif"] }
+                }
+            }
+        }
+    </script>
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <header class="top-bar">
-                <button class="icon-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-                <div class="logo">Fin<span>Chat</span></div>
-                <div class="user-profile">
-                    <div class="avatar user">U</div>
-                </div>
-            </header>
-            
-            <div class="chat-container-wrapper">
-                <div class="chat-container" id="chatContainer">
-                    <div class="message assistant welcome">
-                        <div class="avatar">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                        </div>
-                        <div class="content">
-                            <div class="greeting">
-                                <h1>Hello, Analyst</h1>
-                                <h2>How can I help you today?</h2>
+    <style type="text/tailwindcss">
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-background text-text-main font-body h-screen overflow-hidden flex flex-row">
+
+    <!-- Sidebar Rail -->
+    <aside id="sidebar" class="w-16 h-full flex flex-col justify-between items-center py-6 bg-[#131314] border-r border-[#28292a] z-[100] flex-shrink-0 fixed left-0 top-0">
+        <div class="mt-2">
+            <span class="material-symbols-outlined text-[#F43F5E] text-[28px]">terminal</span>
+        </div>
+        
+        <nav class="flex flex-col items-center gap-6 w-full">
+            <div id="newChatBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="New Analysis"><span class="material-symbols-outlined">add</span></div>
+            <div id="historyToggle" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Recent History"><span class="material-symbols-outlined">history</span></div>
+            <div id="kbOpenBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Vault"><span class="material-symbols-outlined">database</span></div>
+        </nav>
+
+        <div class="mb-4">
+            <div id="headerSettingsBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Settings"><span class="material-symbols-outlined">settings</span></div>
+        </div>
+    </aside>
+
+    <!-- Main Canvas -->
+    <main id="mainCanvas" class="ml-16 flex-1 h-screen flex flex-col relative bg-background">
+        
+        <!-- Drag & Drop Overlay for Main Canvas -->
+        <div id="mainDropOverlay" class="absolute inset-0 bg-[#F43F5E]/10 backdrop-blur-sm z-[200] hidden flex-col items-center justify-center border-4 border-dashed border-[#F43F5E] rounded-2xl m-4 transition-all pointer-events-none">
+            <span class="material-symbols-outlined text-[#F43F5E] text-6xl mb-4">upload_file</span>
+            <h2 class="text-2xl font-bold text-[#e3e3e3]">Drop PDF to Upload to Session</h2>
+        </div>
+
+        <!-- Header -->
+        <header class="w-full max-w-4xl mx-auto flex items-center justify-between p-6 flex-shrink-0">
+            <div class="flex items-center gap-2 text-sm text-[#c4c7c5]">
+                <span>FinChat</span>
+                <span class="material-symbols-outlined text-xs">chevron_right</span>
+                <span id="activeAnalysisTitle" class="text-[#e3e3e3] font-medium">Analysis</span>
+            </div>
+            <button id="toggleMetadataBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">info</span></button>
+        </header>
+
+        <!-- Chat Stage (Scrolling Area) -->
+        <div id="chatContainerWrapper" class="w-full flex-1 overflow-y-auto scrollbar-hide">
+            <div id="chatContainer" class="w-full max-w-4xl mx-auto flex flex-col gap-6 px-4 pt-4 pb-24">
+                <!-- Welcome UI -->
+                <div id="welcomeScreen" class="w-full flex flex-col items-center py-12">
+                    <h1 class="text-3xl font-medium mb-12 text-center text-[#e3e3e3]">How can I help with your analysis?</h1>
+                    
+                    <div class="flex flex-col md:flex-row gap-6 justify-center w-full">
+                        <div class="bg-[#1e1f20] p-6 rounded-2xl w-full md:w-72 border border-[#28292a] hover:border-[#F43F5E] cursor-pointer transition-all welcome-card" data-query="Analyze NVDA inventory and data center revenue trends">
+                            <div class="flex items-center gap-2 mb-2 text-[#c4c7c5]">
+                                <span class="material-symbols-outlined text-sm">query_stats</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider">Revenue Analysis</span>
                             </div>
+                            <p class="text-sm">Analyze $NVDA inventory and revenue trends.</p>
+                        </div>
+                        <div class="bg-[#1e1f20] p-6 rounded-2xl w-full md:w-72 border border-[#28292a] hover:border-[#F43F5E] cursor-pointer transition-all welcome-card" data-query="Evaluate debt exposure and risk across retail sectors">
+                            <div class="flex items-center gap-2 mb-2 text-[#c4c7c5]">
+                                <span class="material-symbols-outlined text-sm">security</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider">Exposure Assessment</span>
+                            </div>
+                            <p class="text-sm">Evaluate debt risk across retail sectors.</p>
                         </div>
                     </div>
-                    <!-- Dynamic Messages will append here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Pill (Non-fixed, naturally at bottom) -->
+        <div class="w-full max-w-4xl mx-auto p-6 flex-shrink-0 relative">
+            <!-- Mention Dropdown -->
+            <div id="mentionDropdown" class="absolute bottom-[calc(100%-8px)] left-6 right-6 bg-[#1e1f20] border border-[#28292a] rounded-2xl shadow-2xl overflow-hidden flex flex-col hidden opacity-0 transition-opacity duration-200 z-[60]">
+                <div class="px-4 py-2 bg-[#28292a] text-[#c4c7c5] text-[10px] font-bold uppercase tracking-wider border-b border-[#333537] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[14px]">description</span> Available Documents
+                </div>
+                <div id="mentionList" class="max-h-48 overflow-y-auto flex flex-col py-2"></div>
+            </div>
+            
+            <form id="chatForm" class="flex items-end justify-between px-4 py-3 bg-[#1e1f20] rounded-[28px] border border-[#28292a] shadow-lg focus-within:border-[#F43F5E] w-full transition-all min-h-[56px]">
+                <input type="file" id="fileUpload" class="hidden" accept=".pdf">
+                <button type="button" id="uploadBtn" class="flex items-center justify-center w-8 h-8 mb-0.5 text-[#c4c7c5] shrink-0 hover:text-white transition-colors">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+                <textarea id="queryInput" placeholder="Enter a prompt here..." required autocomplete="off" rows="1"
+                    class="flex-1 bg-transparent border-none outline-none text-[#e3e3e3] placeholder-[#768390] text-[16px] mx-4 resize-none max-h-40 py-1.5 scrollbar-hide"></textarea>
+                <button type="submit" id="submitBtn" class="flex items-center justify-center w-8 h-8 mb-0.5 rounded-full bg-[#F43F5E] text-white shrink-0 transition-transform active:scale-90" title="Execute Analysis">
+                    <span class="material-symbols-outlined">arrow_upward</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Session Data Drawer -->
+    <aside id="metadataSidebar" class="fixed right-0 top-0 w-80 h-full bg-[#1e1f20] shadow-2xl z-50 p-6 flex flex-col border-l border-[#28292a] transition-transform duration-300 drawer-hidden">
+    </aside>
+
+    <!-- Source Provance Overlay -->
+    <aside id="verificationPanel" class="fixed inset-0 bg-[#131314]/80 backdrop-blur-sm z-[100] flex items-center justify-center hidden">
+        <div class="w-full max-w-4xl h-[80vh] bg-[#1e1f20] rounded-3xl shadow-2xl border border-[#28292a] flex flex-col overflow-hidden m-8">
+            <header class="p-4 border-b border-[#28292a] flex items-center justify-between">
+                <div class="flex items-center gap-2 text-[#F43F5E]">
+                    <span class="material-symbols-outlined">description</span>
+                    <span class="text-sm font-medium">Source Provenance</span>
+                </div>
+                <div id="closeVerificationBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+            </header>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="flex-1 bg-[#131314] relative">
+                    <div id="sourceLoading" class="absolute inset-0 flex items-center justify-center hidden"><div class="animate-pulse text-xs text-[#F43F5E] font-mono">SYNCING...</div></div>
+                    <iframe id="sourcePreview" class="w-full h-full border-none" src="about:blank"></iframe>
+                </div>
+                <div class="w-80 p-6 bg-[#1e1f20] border-l border-[#28292a] overflow-y-auto">
+                    <div class="mb-6">
+                        <div class="text-[10px] font-bold uppercase text-[#768390] mb-2">Context Segment</div>
+                        <p id="contextExcerpt" class="text-sm italic leading-relaxed text-[#e3e3e3]"></p>
+                    </div>
+                    <div id="metadataDisplay" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Modals -->
+    <div id="settingsModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
+        <div class="w-full max-w-sm p-8 bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-lg font-medium">System Parameters</h2>
+                <div id="settingsCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+            </div>
+            <div class="space-y-10" id="settingsForm">
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs font-mono"><span>Top-K Retrieval</span><span id="topKValue" class="text-[#F43F5E]">3</span></div>
+                    <input type="range" id="topKRange" min="1" max="10" step="1" value="3" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs font-mono"><span>Relevance Threshold</span><span id="thresholdValue" class="text-[#F43F5E]">0.3</span></div>
+                    <input type="range" id="thresholdRange" min="0" max="1" step="0.05" value="0.3" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs font-mono"><span>Model Temperature</span><span id="tempValue" class="text-[#F43F5E]">0.7</span></div>
+                    <input type="range" id="tempRange" min="0" max="1.5" step="0.1" value="0.7" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                </div>
+            </div>
+            <button id="saveSettingsBtn" class="mt-12 w-full py-3 bg-[#F43F5E] text-white text-sm font-bold rounded-full hover:bg-[#e11d48] transition-colors">Apply Changes</button>
+        </div>
+    </div>
+
+    <div id="kbModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
+        <div id="kbDropOverlay" class="absolute inset-0 bg-[#F43F5E]/10 backdrop-blur-sm z-[200] hidden flex-col items-center justify-center border-4 border-dashed border-[#F43F5E] m-4 rounded-3xl transition-all pointer-events-none">
+            <span class="material-symbols-outlined text-[#F43F5E] text-6xl mb-4">cloud_upload</span>
+            <h2 class="text-2xl font-bold text-[#e3e3e3]">Drop PDF to Upload Globally</h2>
+        </div>
+        <div class="w-full max-w-2xl p-8 h-[70vh] flex flex-col bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative z-10">
+            <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-lg font-medium">Knowledge Vault</h2>
+                    <button id="globalUploadBtn" class="flex items-center gap-2 bg-[#28292a] hover:bg-[#333537] text-[#e3e3e3] px-3 py-1.5 rounded-full text-xs transition-colors border border-[#333537] hover:border-[#F43F5E]">
+                        <span class="material-symbols-outlined text-[16px]">upload</span> Upload
+                    </button>
+                    <input type="file" id="globalFileUpload" class="hidden" accept=".pdf">
+                </div>
+                <div id="kbCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+            </div>
+            
+            <!-- Progress Bar UI -->
+            <div id="kbProgressContainer" class="w-full mb-6 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="kbProgressText" class="text-xs text-[#e3e3e3] font-medium">Indexing...</span>
+                    <span id="kbProgressPct" class="text-xs text-[#F43F5E] font-mono">0%</span>
+                </div>
+                <div class="w-full bg-[#28292a] rounded-full h-1.5 overflow-hidden">
+                    <div id="kbProgressBar" class="bg-[#F43F5E] h-1.5 rounded-full transition-all duration-300 w-0"></div>
                 </div>
             </div>
             
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <form id="chatForm">
-                        <input type="text" id="queryInput" placeholder="Analyze Q3 revenue, assess risk exposure..." required autocomplete="off">
-                        <button type="submit" id="submitBtn">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
-                    </form>
-                </div>
-                <div class="disclaimer">
-                    FinChat may display inaccurate info, including about financials, so double-check its responses.
-                </div>
-            </div>
-        </main>
+            <div id="docListContainer" class="flex-1 overflow-y-auto space-y-4 scrollbar-hide"></div>
+        </div>
     </div>
-    
+
     <script src="/static/script-v2.js"></script>
 </body>
 </html>

@@ -1,15 +1,58 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import asyncio
 import os
+import logging
 
-from main import initialize_system, build_prompt, INITIAL_K, FINAL_TOP_K
-from embeddings.embedder import embed_query, rerank_results
+from api_routes.chat_routes import router as chat_router
+from api_routes.docs_routes import router as docs_router
+from api_routes.settings_routes import router as settings_router
+import api_routes.chat_routes as chat_routes_module
+import api_routes.docs_routes as docs_routes_module
 
-app = FastAPI(title="FinChat API")
+# Import services for dependency injection
+from services.chat_service import ChatService
+from services.document_service import DocumentService
+from vector_store.faiss_index import VectorStore
+from logging_config import setup_logging, get_logger
+
+# Setup logging
+setup_logging()
+logger = get_logger(__name__)
+from config import (
+    PDF_DIR, INDEX_PATH, METADATA_PATH, 
+    INITIAL_K as CONFIG_INITIAL_K, 
+    FINAL_TOP_K as CONFIG_FINAL_TOP_K,
+    DEFAULT_THRESHOLD, DEFAULT_TEMPERATURE,
+    EMBEDDING_DIM, LLAMA_SERVER_URL,
+    MAX_FILE_SIZE_MB, ALLOWED_EXTENSIONS,
+    DEBUG, HOST, PORT
+)
+from core.initialization import initialize_system
+
+app = FastAPI(title="FinChat API", version="2.6.3")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include API routers with versioning
+app.include_router(chat_router)
+app.include_router(docs_router)
+app.include_router(settings_router)
+
+# Set vector store reference for docs routes
+from api_routes.vector_store_ref import set_vector_store
+set_vector_store(None)  # Will be updated on startup
 
 @app.middleware("http")
 async def add_no_cache_header(request: Request, call_next):
@@ -18,6 +61,11 @@ async def add_no_cache_header(request: Request, call_next):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+@app.get("/")
+async def read_index():
+    """Serve the main frontend application"""
+    return FileResponse('app/static/index.html')
 
 # Ensure static directory exists
 os.makedirs("app/static", exist_ok=True)
@@ -28,62 +76,28 @@ os.makedirs("data/pdfs", exist_ok=True)
 app.mount("/pdfs", StaticFiles(directory="data/pdfs"), name="pdfs")
 
 vector_store = None
+chat_service = None
+document_service = None
 
 @app.on_event("startup")
 async def startup_event():
-    global vector_store
-    print("Initializing system for API...")
+    global vector_store, chat_service, document_service
+    logger.info("Initializing system for API...")
     loop = asyncio.get_event_loop()
     # Execute the heavy initialization in a threadpool to not block asyncio
     vector_store, num_files, num_chunks = await loop.run_in_executor(None, initialize_system)
-    print(f"System initialized! Loaded {num_files} files with {num_chunks} chunks.")
+    logger.info(f"System initialized! Loaded {num_files} files with {num_chunks} chunks.")
+    # Initialize services
+    chat_service = ChatService(vector_store)
+    document_service = DocumentService()
+    
+    # Inject dependencies properly
+    set_vector_store(vector_store)  # Fixes the NameError
+    chat_routes_module.set_services(vector_store, chat_service)
+    docs_routes_module.set_document_service(document_service)
 
 class ChatRequest(BaseModel):
     query: str
-
-@app.get("/")
-async def get_root():
-    return FileResponse("app/static/index.html")
-
-@app.post("/api/chat")
-async def chat_endpoint(request: ChatRequest):
-    query = request.query
-    
-    query_embedding = embed_query(query)
-    initial_results = vector_store.search_hybrid(query, query_embedding, k=INITIAL_K)
-    
-    if not initial_results:
-        async def mock_stream():
-            yield "data: " + json.dumps({"type": "chunk", "content": "The provided documents do not contain information regarding this query."}) + "\n\n"
-        return StreamingResponse(mock_stream(), media_type="text/event-stream")
-
-    final_results = rerank_results(query, initial_results, top_n=FINAL_TOP_K)
-    prompt = build_prompt(query, final_results)
-
-    # Format citations for the frontend
-    citations = []
-    for i, res in enumerate(final_results, 1):
-        citations.append({
-            "ref": i,
-            "doc_name": res['doc_name'],
-            "page": res['page_number'],
-            "relevance": round(res.get('rerank_score', 0), 4)
-        })
-
-    def generate():
-        # 1. Send citations immediately
-        yield f"data: {json.dumps({'type': 'citations', 'citations': citations})}\n\n"
-        
-        # 2. Stream generation from generator.py
-        from llm.generator import generate_answer
-        for chunk in generate_answer(prompt):
-            if chunk:
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-        
-        # 3. Send done signal
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn

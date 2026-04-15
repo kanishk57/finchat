@@ -1,11 +1,8 @@
 import os
 import sys
-import time
-import glob
-from ingestion.pdf_parser import extract_pdf_pages
-from embeddings.embedder import embed_passages, embed_query, rerank_results, load_models
+from core.initialization import initialize_system, build_prompt
+from embeddings.embedder import embed_query, rerank_results
 from vector_store.faiss_index import VectorStore
-from llm.context_builder import build_context
 from llm.generator import generate_answer
 
 from rich.console import Console
@@ -17,92 +14,6 @@ from rich.text import Text
 from rich.rule import Rule
 
 console = Console()
-
-# ----------------------------
-# CONFIG
-# ----------------------------
-PDF_DIR = "data/pdfs/"
-INITIAL_K = 10
-FINAL_TOP_K = 3
-THRESHOLD = 0.3
-INDEX_PATH = "faiss.index"
-METADATA_PATH = "metadata.pkl"
-
-def build_prompt(query, retrieved_results):
-    context = build_context(retrieved_results)
-    return f"""
-### INSTRUCTIONS
-You are a highly precise Financial Analysis Assistant. 
-Your goal is to provide a structured, factual answer based ONLY on the provided context.
-
-### CONSTRAINTS
-- Cite every claim using [Source X] format at the end of the sentence.
-- If multiple documents provide conflicting data, highlight the discrepancy.
-- If the information is not present, respond: "The provided documents do not contain information regarding [X]."
-- Keep the tone professional and editorial.
-
-### CONTEXT
-{context}
-
-### USER QUERY
-{query}
-
-### ANALYSIS AND RESPONSE
-"""
-
-def initialize_system():
-    # Use a single status context for the whole startup to prevent flickering
-    with console.status("[bold green]Starting FinChat Engine...", spinner="aesthetic") as status:
-        
-        # 1. Weights Loading
-        status.update("[bold green]Loading AI models & weights (BGE-Base)...")
-        load_models()
-        
-        # 2. Document Discovery
-        status.update("[bold blue]Scanning data directory...")
-        pdf_files = glob.glob(os.path.join(PDF_DIR, "*.pdf"))
-        if not pdf_files:
-            console.print(f"[bold red]Error:[/bold red] No PDFs found in {PDF_DIR}")
-            sys.exit(1)
-
-        # 3. Indexing Logic
-        vector_store = None
-        FORCE_REBUILD = False
-        pages = []
-        num_chunks = 0
-
-        if os.path.exists(INDEX_PATH) and os.path.exists(METADATA_PATH):
-            vector_store = VectorStore(768) 
-            if vector_store.load(INDEX_PATH, METADATA_PATH):
-                indexed_docs = {m["doc_name"] for m in vector_store.metadata}
-                current_docs = {os.path.basename(f) for f in pdf_files}
-                if indexed_docs != current_docs:
-                    status.update("[bold yellow]Change detected. Rebuilding index...")
-                    FORCE_REBUILD = True
-                else:
-                    status.update("[bold green]Found existing index. Skipping rebuild...")
-                    num_chunks = len(vector_store.metadata)
-            else:
-                FORCE_REBUILD = True
-        else:
-            FORCE_REBUILD = True
-
-        if FORCE_REBUILD:
-            status.update(f"[bold blue]Analyzing {len(pdf_files)} documents...")
-            pages = extract_pdf_pages(pdf_files, chunk_size=1000, overlap=200)
-            num_chunks = len(pages)
-            
-            status.update("[bold cyan]Generating embeddings (this may take a minute)...")
-            texts = [page["text"] for page in pages]
-            
-            # Use batching logic configured in embedder.py
-            embeddings = embed_passages(texts)
-            
-            vector_store = VectorStore(len(embeddings[0]))
-            vector_store.add(embeddings, pages)
-            vector_store.save(INDEX_PATH, METADATA_PATH)
-            
-    return vector_store, len(pdf_files), num_chunks
 
 def main():
     # Show initial banner briefly

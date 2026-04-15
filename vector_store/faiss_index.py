@@ -27,50 +27,127 @@ class VectorStore:
         self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
         self.bm25 = BM25Okapi(self.corpus_tokens)
 
-    def search_semantic(self, query_embedding, k=5, threshold=0.0):
+    def remove_document(self, doc_name):
+        """Removes all chunks associated with a specific document from the index and metadata."""
+        indices_to_remove = [i for i, m in enumerate(self.metadata) if m.get("doc_name") == doc_name]
+        
+        if not indices_to_remove:
+            return False
+            
+        # Remove from FAISS index
+        sel = faiss.IDSelectorBatch(indices_to_remove)
+        self.index.remove_ids(sel)
+        
+        # Remove from metadata
+        self.metadata = [m for i, m in enumerate(self.metadata) if i not in indices_to_remove]
+        
+        # Update BM25
+        if self.metadata:
+            self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
+            self.bm25 = BM25Okapi(self.corpus_tokens)
+        else:
+            self.corpus_tokens = []
+            self.bm25 = None
+            
+        return True
+
+    def remove_session(self, session_id):
+        """Removes all chunks associated with a specific session_id from the index and metadata."""
+        indices_to_remove = [i for i, m in enumerate(self.metadata) if m.get("session_id") == session_id]
+        
+        if not indices_to_remove:
+            return False
+            
+        # Remove from FAISS index
+        sel = faiss.IDSelectorBatch(indices_to_remove)
+        self.index.remove_ids(sel)
+        
+        # Remove from metadata
+        self.metadata = [m for i, m in enumerate(self.metadata) if i not in indices_to_remove]
+        
+        # Update BM25
+        if self.metadata:
+            self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
+            self.bm25 = BM25Okapi(self.corpus_tokens)
+        else:
+            self.corpus_tokens = []
+            self.bm25 = None
+            
+        return True
+
+    def search_semantic(self, query_embedding, k=5, threshold=0.0, session_id=None, doc_name=None):
         query_embedding = np.array([query_embedding]).astype("float32")
         faiss.normalize_L2(query_embedding)
 
-        scores, indices = self.index.search(query_embedding, k)
+        # Search more results initially to allow for filtering
+        search_k = k * 10 if (session_id or doc_name) else k
+        scores, indices = self.index.search(query_embedding, search_k)
         results = []
 
         for score, idx in zip(scores[0], indices[0]):
             if idx == -1 or score < threshold:
                 continue
-
+                
             item = self.metadata[idx].copy()
+            item_session = item.get("session_id")
+            
+            # Filter logic: include if item is global (None) or belongs to current session
+            if session_id and item_session and item_session != session_id:
+                continue
+                
+            # Filter logic: doc_name match
+            if doc_name and item.get("doc_name") != doc_name:
+                continue
+
             item["score"] = float(score)
             item["search_type"] = "semantic"
             results.append(item)
+            
+            if len(results) >= k:
+                break
 
         return results
 
-    def search_bm25(self, query, k=5):
+    def search_bm25(self, query, k=5, session_id=None, doc_name=None):
         if not self.bm25:
             return []
             
         tokenized_query = self._tokenize(query)
         scores = self.bm25.get_scores(tokenized_query)
-        top_n = np.argsort(scores)[::-1][:k]
+        top_n = np.argsort(scores)[::-1]
         
         results = []
         for idx in top_n:
             if scores[idx] <= 0:
                 continue
+                
             item = self.metadata[idx].copy()
+            item_session = item.get("session_id")
+            
+            # Filter logic
+            if session_id and item_session and item_session != session_id:
+                continue
+                
+            # Filter logic: doc_name match
+            if doc_name and item.get("doc_name") != doc_name:
+                continue
+                
             item["score"] = float(scores[idx])
             item["search_type"] = "bm25"
             results.append(item)
             
+            if len(results) >= k:
+                break
+            
         return results
 
-    def search_hybrid(self, query, query_embedding, k=10, semantic_weight=0.7):
+    def search_hybrid(self, query, query_embedding, k=10, semantic_weight=0.7, session_id=None, doc_name=None):
         """
         Combine BM25 and Semantic search.
         Since reranking will follow, we return a merged list.
         """
-        semantic_results = self.search_semantic(query_embedding, k=k)
-        keyword_results = self.search_bm25(query, k=k)
+        semantic_results = self.search_semantic(query_embedding, k=k, session_id=session_id, doc_name=doc_name)
+        keyword_results = self.search_bm25(query, k=k, session_id=session_id, doc_name=doc_name)
         
         # Use a dict to deduplicate results by chunk_id
         merged = {}
@@ -88,21 +165,21 @@ class VectorStore:
         return list(merged.values())
 
     def save(self, index_path, metadata_path):
-        faiss.write_index(self.index, index_path)
+        faiss.write_index(self.index, str(index_path))
 
-        with open(metadata_path, "wb") as f:
+        with open(str(metadata_path), "wb") as f:
             pickle.dump({
                 "metadata": self.metadata,
                 "corpus_tokens": self.corpus_tokens
             }, f)
 
     def load(self, index_path, metadata_path):
-        if not os.path.exists(index_path) or not os.path.exists(metadata_path):
+        if not os.path.exists(str(index_path)) or not os.path.exists(str(metadata_path)):
             return False
 
-        self.index = faiss.read_index(index_path)
+        self.index = faiss.read_index(str(index_path))
 
-        with open(metadata_path, "rb") as f:
+        with open(str(metadata_path), "rb") as f:
             data = pickle.load(f)
             self.metadata = data["metadata"]
             self.corpus_tokens = data.get("corpus_tokens", [])

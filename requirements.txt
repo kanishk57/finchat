@@ -1,3 +1,28 @@
+# Core web framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6  # Required for form data/file uploads
 
-fastapi
-uvicorn
+# ML/NLP dependencies
+sentence-transformers>=2.2.2
+transformers>=4.35.0
+torch>=2.0.0
+
+# Vector search and retrieval
+faiss-cpu>=1.7.4
+rank-bm25>=0.2.2
+
+# PDF processing
+pypdf>=3.15.0
+
+# Rich console output (for CLI mode)
+rich>=13.5.0
+
+# HTTP client for LLM communication
+requests>=2.31.0
+
+# Pydantic for data validation
+pydantic>=2.5.0
+
+# CORS middleware
+# (Already included with fastapi)

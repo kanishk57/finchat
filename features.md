@@ -1,28 +1,29 @@
 # FinChat Features
 
-Currently implemented features in this RAG system:
+Comprehensive capabilities of the Minimal Analyst Terminal:
 
-## 🔍 Retrieval & Search
-- **Hybrid Search**: Combines BM25 keyword search with FAISS semantic vector search.
-- **Cross-Encoder Reranking**: Uses `BAAI/bge-reranker-base` for high-precision result scoring.
-- **Multi-File Support**: Automatically scans and indexes all PDF files in the `data/pdfs/` directory.
+## 🔍 Retrieval & Search Protocol
+- **Hybrid Search**: Fuses BM25 keyword matching with FAISS semantic vector search for balanced retrieval.
+- **Cross-Encoder Reranking**: Integrates `BAAI/bge-reranker-base` to score and refine top results.
+- **Protocol Tuning**: Real-time adjustment of RAG parameters including Top-K, thresholding, and temperature.
 
-## 📄 Ingestion & Parsing
-- **Semantic Chunking**: Intelligent text splitting that respects sentence boundaries and maintains context overlap.
-- **Multi-PDF Parsing**: Extracts text and metadata (page numbers, filenames) from multiple documents.
+## 📄 Ingestion & Management
+- **Interactive Knowledge Base**: Full CRUD support for institutional PDFs via the browser interface.
+- **Background Re-indexing**: Automated vector store updates upon new file uploads or redactions.
+- **Metadata Extraction**: Automatic capture of filing dates and page-level source tracking.
 
 ## 🤖 LLM & Generation
-- **Real-time Streaming**: Tokens are streamed directly from the LLM via SSE for immediate feedback.
-- **Gemma-3 Optimized**: Configured with chat templates specifically for Gemma-3 models.
-- **Source Attribution**: Prompt engineering ensures the assistant cites sources (e.g., [Source 1]) in its answers.
+- **Real-time SSE Streaming**: Immediate response feedback with dynamic message animations.
+- **Gemma-3 Optimized**: Prompt templates specifically engineered for high-precision financial synthesis.
+- **Robust Source Attribution**: Integrated citation mapping that survives page refreshes and session restarts.
 
-## 🌐 Web Interface (Gemini-Style)
-- **Responsive Layout**: Full-page design with a collapsible sidebar for mobile and desktop.
-- **Multi-Chat Sessions**: Create and manage multiple independent conversations.
-- **Auto-Title Generation**: Automatically names chat sessions based on the user's first query.
-- **Local Persistence**: Full chat history and session states are saved to `localStorage`.
-- **Premium Aesthetics**: Glassmorphism, smooth animations, and optimized typography.
+## 🌐 Analyst Terminal (UI/UX)
+- **Minimalist Light Theme**: High-contrast, Helvetica Neue aesthetic optimized for readability.
+- **Integrated Verification**: Built-in PDF previewer that opens to the exact page cited by the AI.
+- **Portfolio Analytics**: Aggregated dashboard showing asset volume and unique entities.
+- **Institutional Reporting**: One-click export of analysis sessions into formatted Markdown reports.
 
-## 🛠️ Infrastructure
-- **Automatic Server Management**: `run.sh` handles starting and health-checking the `llama-server` in the background.
-- **Vector Store Persistence**: FAISS index and BM25 metadata are saved to disk for fast subsequent loads.
+## 🛠️ Infrastructure & Stability
+- **Multi-Chat Persistence**: Local ledger management with auto-titling and session persistence.
+- **Localized Assets**: Local Tailwind CSS and Material Icons for fast, CDN-independent deployment.
+- **Automated Lifecycle**: `run.sh` manages backend server health and vector store loading.
