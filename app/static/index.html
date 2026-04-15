@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinChat | Analysis Terminal</title>
-    
+
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="/static/tailwind.min.js"></script>
-    
+
     <script>
         tailwind.config = {
             theme: {
@@ -18,7 +18,7 @@
                     colors: {
                         "primary": "#F43F5E",
                         "background": "#131314",
-                        "sidebar": "#131314", 
+                        "sidebar": "#171819",
                         "surface": "#1e1f20",
                         "surface-container": "#28292a",
                         "outline-variant": "#333537",
@@ -28,155 +28,401 @@
                     fontFamily: { body: ["Inter", "sans-serif"] }
                 }
             }
-        }
+        };
     </script>
 
     <style type="text/tailwindcss">
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
+
+    <style>
+        :root {
+            color-scheme: dark;
+            --sidebar-open-width: 304px;
+            --sidebar-collapsed-width: 96px;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            min-height: 100svh;
+        }
+
+        #sidebar {
+            width: var(--sidebar-open-width);
+            transform: translateX(0);
+            transition: width 220ms ease, transform 220ms ease;
+        }
+
+        #mainCanvas {
+            margin-left: var(--sidebar-open-width);
+            transition: margin-left 220ms ease;
+        }
+
+        body.sidebar-collapsed #sidebar {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed #mainCanvas {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed .sidebar-expanded-only {
+            display: none !important;
+        }
+
+        body:not(.sidebar-collapsed) .sidebar-collapsed-only {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .sidebar-icon-button {
+            justify-content: center;
+        }
+
+        body.sidebar-collapsed .sidebar-stack-center {
+            align-items: center;
+        }
+
+        body.sidebar-collapsed .sidebar-search-shell,
+        body.sidebar-collapsed .sidebar-section-body,
+        body.sidebar-collapsed .sidebar-health-copy,
+        body.sidebar-collapsed .sidebar-header-copy {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .sidebar-card-compact {
+            padding-left: 0.875rem;
+            padding-right: 0.875rem;
+        }
+
+        .session-item.active {
+            border-color: rgba(244, 63, 94, 0.55);
+            background: rgba(244, 63, 94, 0.08);
+        }
+
+        .session-item .session-actions {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 160ms ease;
+        }
+
+        .session-item:hover .session-actions,
+        .session-item.active .session-actions {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 1023px) {
+            #sidebar {
+                width: min(360px, 90vw);
+                transform: translateX(-100%);
+            }
+
+            #mainCanvas {
+                margin-left: 0;
+            }
+
+            body.sidebar-mobile-open #sidebar {
+                transform: translateX(0);
+            }
+
+            body .sidebar-collapsed-only {
+                display: none !important;
+            }
+
+            body .sidebar-expanded-only,
+            body .sidebar-search-shell,
+            body .sidebar-section-body,
+            body .sidebar-health-copy,
+            body .sidebar-header-copy {
+                display: block;
+            }
+        }
+    </style>
 </head>
-<body class="bg-background text-text-main font-body h-screen overflow-hidden flex flex-row">
+<body class="bg-background text-text-main font-body overflow-hidden">
+    <div id="sidebarBackdrop" class="fixed inset-0 z-[110] hidden bg-black/55 backdrop-blur-sm lg:hidden"></div>
 
-    <!-- Sidebar Rail -->
-    <aside id="sidebar" class="w-16 h-full flex flex-col items-center py-6 bg-[#131314] border-r border-[#28292a] z-[100] flex-shrink-0 fixed left-0 top-0 transition-all duration-300">
-        <div class="w-full flex items-center justify-center mb-8 px-4">
-            <button id="sidebarToggleBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors flex items-center justify-center">
-                <span class="material-symbols-outlined" id="sidebarToggleIcon">menu</span>
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-[120] flex h-screen flex-col border-r border-[#28292a] bg-sidebar/95 px-3 py-3 shadow-2xl backdrop-blur-xl">
+        <div class="sidebar-stack-center mb-3 flex items-start gap-3 px-2">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#F43F5E] shadow-lg shadow-black/20">
+                <span class="material-symbols-outlined text-[22px]">finance</span>
+            </div>
+            <div class="sidebar-header-copy min-w-0 flex-1 pt-0.5">
+                <div class="flex items-center gap-2">
+                    <h1 class="truncate text-[15px] font-semibold text-white">FinChat</h1>
+                    <span class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Ready</span>
+                </div>
+                <p class="mt-1 text-[11px] text-[#8f959b]">Analyst workspace</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="sidebarToggleBtn" type="button" class="hidden h-10 w-10 items-center justify-center rounded-xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white lg:flex" aria-label="Toggle sidebar">
+                    <span class="material-symbols-outlined" id="sidebarToggleIcon">left_panel_open</span>
+                </button>
+                <button id="mobileSidebarClose" type="button" class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white lg:hidden" aria-label="Close sidebar">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-3 rounded-[26px] border border-[#2f3032] bg-[#1b1c1d] p-2.5 sidebar-card-compact">
+            <button id="newChatBtn" type="button" class="sidebar-icon-button flex w-full items-center justify-between rounded-2xl bg-[#F43F5E] px-3.5 py-3 text-left text-sm font-semibold text-white transition-transform hover:scale-[0.99] hover:bg-[#e11d48]">
+                <span class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">edit_square</span>
+                    <span class="sidebar-expanded-only">New analysis</span>
+                </span>
+                <span class="sidebar-expanded-only text-xs text-rose-100">Ctrl+K</span>
             </button>
-            <span class="sidebar-text hidden ml-3 text-[18px] font-bold text-[#e3e3e3] truncate">FinChat</span>
+
+            <div class="sidebar-search-shell mt-2.5 flex items-center gap-2 rounded-2xl border border-[#2d2f31] bg-[#161718] px-3 py-2.5">
+                <span class="material-symbols-outlined text-[16px] text-[#7d8288]">search</span>
+                <input id="sidebarSessionSearch" type="text" placeholder="Search sessions" class="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#6f747a]">
+            </div>
         </div>
 
-        <div class="mb-8">
-            <span class="material-symbols-outlined text-[#F43F5E] text-[28px]">terminal</span>
-        </div>
-        
-        <nav class="flex flex-col items-center gap-6 w-full">
-            <div id="newChatBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="New Analysis">
-                <span class="material-symbols-outlined">add</span>
-                <span class="sidebar-text hidden ml-4 text-sm font-medium">New Chat</span>
-            </div>
-            <div id="historyToggle" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Recent History">
-                <span class="material-symbols-outlined">history</span>
-                <span class="sidebar-text hidden ml-4 text-sm font-medium">History</span>
-            </div>
-            <div id="kbOpenBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Vault">
-                <span class="material-symbols-outlined">database</span>
-                <span class="sidebar-text hidden ml-4 text-sm font-medium">Vault</span>
-            </div>
-        </nav>
+        <div class="flex-1 overflow-y-auto scrollbar-hide pr-1">
+            <section class="mb-3 rounded-[26px] border border-[#2c2d2f] bg-[#1b1c1d] p-2.5 sidebar-card-compact">
+                <div class="sidebar-icon-button flex items-center gap-3 px-1 pb-1.5">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[#F43F5E]">chat</span>
+                        <div class="sidebar-expanded-only">
+                            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b9096]">Chats</div>
+                            <div id="sidebarChatSummary" class="mt-0.5 text-[11px] text-[#a7adb3]">0 sessions</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-section-body mt-1.5">
+                    <div id="sidebarSessionList" class="space-y-1.5"></div>
+                </div>
+                <div class="sidebar-collapsed-only mt-1.5 flex flex-col items-center gap-2">
+                    <button type="button" id="collapsedHistoryBtn" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white" title="Sessions">
+                        <span class="material-symbols-outlined">history</span>
+                    </button>
+                </div>
+            </section>
 
-        <div class="mt-auto mb-4 w-full">
-            <div id="headerSettingsBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Settings">
-                <span class="material-symbols-outlined">settings</span>
-                <span class="sidebar-text hidden ml-4 text-sm font-medium">Settings</span>
+            <section class="mb-3 rounded-[26px] border border-[#2c2d2f] bg-[#1b1c1d] p-2.5 sidebar-card-compact">
+                <div class="sidebar-icon-button flex items-center gap-3 px-1 pb-1.5">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[#F59E0B]">database</span>
+                        <div class="sidebar-expanded-only">
+                            <div class="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b9096]">Knowledge Vault</div>
+                            <div class="mt-0.5 text-[11px] text-[#a7adb3]">Sources and indexing</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section-body mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <button id="kbOpenBtn" type="button" class="rounded-[22px] border border-[#2f3032] bg-[#161718] p-3 text-left transition-colors hover:border-[#F43F5E] hover:bg-[#1b1c1d]">
+                        <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Documents</div>
+                        <div id="sidebarDocCount" class="mt-1.5 text-lg font-semibold text-white">0</div>
+                        <div id="sidebarIndexStatus" class="mt-1 text-[11px] text-[#97a0a8]">Idle</div>
+                    </button>
+                    <div class="rounded-[22px] border border-[#2f3032] bg-[#161718] p-3">
+                        <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Storage</div>
+                        <div id="sidebarStorageValue" class="mt-1.5 text-lg font-semibold text-white">0 MB</div>
+                        <div id="sidebarEntityCount" class="mt-1 text-[11px] text-[#97a0a8]">0 tracked entities</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section-body mt-2 flex flex-wrap gap-2">
+                    <button id="sidebarUploadBtn" type="button" class="rounded-full border border-[#333537] bg-[#232425] px-3 py-1.5 text-[11px] font-medium text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:text-white">Upload</button>
+                    <button id="portfolioStatsBtn" type="button" class="rounded-full border border-[#333537] bg-[#232425] px-3 py-1.5 text-[11px] font-medium text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:text-white">Stats</button>
+                </div>
+
+                <div class="sidebar-collapsed-only mt-1.5 flex flex-col items-center gap-2">
+                    <button type="button" id="collapsedVaultBtn" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white" title="Vault">
+                        <span class="material-symbols-outlined">database</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="rounded-[26px] border border-[#2c2d2f] bg-[#1b1c1d] p-2.5 sidebar-card-compact">
+                <div class="sidebar-icon-button flex items-center gap-3 px-1 pb-1.5">
+                    <span class="material-symbols-outlined text-sky-400">tune</span>
+                    <div class="sidebar-expanded-only">
+                        <div class="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b9096]">Tools</div>
+                        <div class="mt-0.5 text-[11px] text-[#a7adb3]">Settings and export</div>
+                    </div>
+                </div>
+                <div class="sidebar-section-body mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                    <button id="headerSettingsBtn" type="button" class="flex items-center gap-3 rounded-[22px] border border-[#2f3032] bg-[#161718] px-3 py-2.5 text-left text-sm text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:bg-[#202123]">
+                        <span class="material-symbols-outlined text-[18px] text-sky-300">settings</span>
+                        <span>Retrieval settings</span>
+                    </button>
+                    <button id="exportReportBtn" type="button" class="flex items-center gap-3 rounded-[22px] border border-[#2f3032] bg-[#161718] px-3 py-2.5 text-left text-sm text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:bg-[#202123]">
+                        <span class="material-symbols-outlined text-[18px] text-emerald-300">download</span>
+                        <span>Export report</span>
+                    </button>
+                </div>
+                <div class="sidebar-collapsed-only mt-1.5 flex flex-col items-center gap-2">
+                    <button type="button" id="collapsedSettingsBtn" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white" title="Settings">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                    <button type="button" id="collapsedExportBtn" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white" title="Export">
+                        <span class="material-symbols-outlined">download</span>
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <div class="mt-3 rounded-[26px] border border-[#2c2d2f] bg-[#1b1c1d] p-2.5 sidebar-card-compact">
+            <div class="sidebar-icon-button flex items-start gap-3">
+                <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+                    <span class="material-symbols-outlined text-[18px]">monitoring</span>
+                </div>
+                <div class="sidebar-health-copy min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="text-sm font-semibold text-white">System health</div>
+                        <span id="sidebarModelStatus" class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Online</span>
+                    </div>
+                    <div id="sidebarHealthText" class="mt-1.5 text-[11px] text-[#9ba0a6]">Index and session status</div>
+                    <div class="mt-2 flex flex-wrap gap-2 text-[11px] text-[#c4c7c5]">
+                        <span id="sidebarSessionCountBadge" class="rounded-full border border-[#333537] px-2 py-1">0 sessions</span>
+                        <span id="sidebarActiveSessionBadge" class="rounded-full border border-[#333537] px-2 py-1 truncate max-w-[150px]">No active chat</span>
+                    </div>
+                </div>
             </div>
         </div>
     </aside>
 
-    <!-- Main Canvas -->
-    <main id="mainCanvas" class="ml-16 flex-1 h-screen flex flex-col relative bg-background transition-all duration-300">
-        
-        <!-- Drag & Drop Overlay for Main Canvas -->
-        <div id="mainDropOverlay" class="absolute inset-0 bg-[#F43F5E]/10 backdrop-blur-sm z-[200] hidden flex-col items-center justify-center border-4 border-dashed border-[#F43F5E] rounded-2xl m-4 transition-all pointer-events-none">
-            <span class="material-symbols-outlined text-[#F43F5E] text-6xl mb-4">upload_file</span>
-            <h2 class="text-2xl font-bold text-[#e3e3e3]">Drop PDF to Upload to Session</h2>
+    <main id="mainCanvas" class="relative flex h-screen min-h-screen flex-col bg-background">
+        <div id="mainDropOverlay" class="pointer-events-none absolute inset-0 z-[200] m-3 hidden flex-col items-center justify-center rounded-[28px] border-4 border-dashed border-[#F43F5E] bg-[#F43F5E]/10 text-center backdrop-blur-sm sm:m-4">
+            <span class="material-symbols-outlined mb-4 text-6xl text-[#F43F5E]">upload_file</span>
+            <h2 class="px-6 text-xl font-bold text-[#e3e3e3] sm:text-2xl">Drop PDF to Upload to Session</h2>
+            <p class="mt-3 px-6 text-sm text-[#c4c7c5]">The file will be attached to the current analysis thread and indexed in the background.</p>
         </div>
 
-        <!-- Header -->
-        <header class="w-full max-w-4xl mx-auto flex items-center justify-between p-6 flex-shrink-0">
-            <div class="flex items-center gap-2 text-sm text-[#c4c7c5]">
-                <span>FinChat</span>
-                <span class="material-symbols-outlined text-xs">chevron_right</span>
-                <span id="activeAnalysisTitle" class="text-[#e3e3e3] font-medium">Analysis</span>
+        <header class="border-b border-[#222325] bg-background/90 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+            <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
+                <div class="flex min-w-0 items-center gap-3">
+                    <button id="mobileSidebarToggle" type="button" class="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#2f3032] bg-[#1b1c1d] text-[#c4c7c5] transition-colors hover:text-white lg:hidden" aria-label="Open sidebar">
+                        <span class="material-symbols-outlined">menu</span>
+                    </button>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 text-sm text-[#9aa0a6]">
+                            <span>FinChat</span>
+                            <span class="material-symbols-outlined text-xs">chevron_right</span>
+                            <span id="activeAnalysisTitle" class="truncate font-medium text-white">Analysis</span>
+                        </div>
+                        <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#7d8288]">
+                            <span id="headerSessionStatus" class="rounded-full border border-[#2f3032] px-2 py-0.5">Active session</span>
+                            <span id="headerVaultStatus" class="rounded-full border border-[#2f3032] px-2 py-0.5">Vault idle</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </header>
 
-        <!-- Chat Stage (Scrolling Area) -->
-        <div id="chatContainerWrapper" class="w-full flex-1 overflow-y-auto scrollbar-hide">
-            <div id="chatContainer" class="w-full max-w-4xl mx-auto flex flex-col gap-6 px-4 pt-4 pb-24">
-                <!-- Welcome UI -->
-                <div id="welcomeScreen" class="w-full flex flex-col items-center py-12">
-                    <h1 class="text-3xl font-medium mb-12 text-center text-[#e3e3e3]">How can I help with your analysis?</h1>
-                    
-                    <div class="flex flex-col md:flex-row gap-6 justify-center w-full">
-                        <div class="bg-[#1e1f20] p-6 rounded-2xl w-full md:w-72 border border-[#28292a] hover:border-[#F43F5E] cursor-pointer transition-all welcome-card" data-query="Analyze NVDA inventory and data center revenue trends">
-                            <div class="flex items-center gap-2 mb-2 text-[#c4c7c5]">
-                                <span class="material-symbols-outlined text-sm">query_stats</span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider">Revenue Analysis</span>
+        <div id="chatContainerWrapper" class="flex-1 overflow-y-auto scrollbar-hide px-4 pb-2 sm:px-6 lg:px-8">
+            <div id="chatContainer" class="mx-auto flex w-full max-w-4xl flex-col gap-5 pb-24 pt-6 sm:gap-6 sm:pt-8">
+                <div id="welcomeScreen" class="w-full py-8 sm:py-12">
+                    <div class="rounded-[32px] border border-[#262729] bg-gradient-to-br from-[#1c1d1f] via-[#18191a] to-[#141516] p-6 shadow-2xl shadow-black/20 sm:p-8 lg:p-10">
+                        <div class="max-w-3xl">
+                            <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-[#333537] bg-[#202123] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#c4c7c5]">
+                                <span class="material-symbols-outlined text-[16px] text-[#F43F5E]">auto_awesome</span>
+                                Analyst Mode
                             </div>
-                            <p class="text-sm">Analyze $NVDA inventory and revenue trends.</p>
+                            <h1 class="max-w-2xl text-3xl font-semibold leading-tight text-white sm:text-4xl">Ask for financial analysis, document comparisons, and cited evidence in one workspace.</h1>
+                            <p class="mt-4 max-w-2xl text-sm leading-7 text-[#9aa0a6] sm:text-[15px]">Use the sidebar to manage sessions like a modern AI chat product, then pull from your vault with inline citations and PDF preview.</p>
                         </div>
-                        <div class="bg-[#1e1f20] p-6 rounded-2xl w-full md:w-72 border border-[#28292a] hover:border-[#F43F5E] cursor-pointer transition-all welcome-card" data-query="Evaluate debt exposure and risk across retail sectors">
-                            <div class="flex items-center gap-2 mb-2 text-[#c4c7c5]">
-                                <span class="material-symbols-outlined text-sm">security</span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider">Exposure Assessment</span>
-                            </div>
-                            <p class="text-sm">Evaluate debt risk across retail sectors.</p>
+
+                        <div class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <button type="button" class="welcome-card rounded-3xl border border-[#2b2d2f] bg-[#171819] p-5 text-left transition-all hover:border-[#F43F5E] hover:bg-[#1d1e20]" data-query="Analyze NVDA inventory and data center revenue trends">
+                                <div class="mb-3 flex items-center gap-2 text-[#c4c7c5]">
+                                    <span class="material-symbols-outlined text-sm text-[#F43F5E]">query_stats</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-[0.18em]">Revenue Analysis</span>
+                                </div>
+                                <p class="text-sm leading-6 text-white">Analyze NVDA inventory build, pricing power, and data center revenue acceleration.</p>
+                            </button>
+                            <button type="button" class="welcome-card rounded-3xl border border-[#2b2d2f] bg-[#171819] p-5 text-left transition-all hover:border-[#F43F5E] hover:bg-[#1d1e20]" data-query="Evaluate debt exposure and risk across retail sectors">
+                                <div class="mb-3 flex items-center gap-2 text-[#c4c7c5]">
+                                    <span class="material-symbols-outlined text-sm text-[#F43F5E]">security</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-[0.18em]">Exposure Assessment</span>
+                                </div>
+                                <p class="text-sm leading-6 text-white">Evaluate debt risk, refinancing pressure, and balance-sheet exposure across retail names.</p>
+                            </button>
+                            <button type="button" class="welcome-card rounded-3xl border border-[#2b2d2f] bg-[#171819] p-5 text-left transition-all hover:border-[#F43F5E] hover:bg-[#1d1e20]" data-query="Summarize the latest filing and highlight guidance changes">
+                                <div class="mb-3 flex items-center gap-2 text-[#c4c7c5]">
+                                    <span class="material-symbols-outlined text-sm text-[#F43F5E]">description</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-[0.18em]">Filing Summary</span>
+                                </div>
+                                <p class="text-sm leading-6 text-white">Summarize the latest filing, highlight guidance changes, and note any risk disclosures.</p>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Input Pill (Non-fixed, naturally at bottom) -->
-        <div class="w-full max-w-4xl mx-auto p-6 flex-shrink-0 relative">
-            <!-- Mention Dropdown -->
-            <div id="mentionDropdown" class="absolute bottom-[calc(100%-8px)] left-6 right-6 bg-[#1e1f20] border border-[#28292a] rounded-2xl shadow-2xl overflow-hidden flex flex-col hidden opacity-0 transition-opacity duration-200 z-[60]">
-                <div class="px-4 py-2 bg-[#28292a] text-[#c4c7c5] text-[10px] font-bold uppercase tracking-wider border-b border-[#333537] flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[14px]">description</span> Available Documents
+        <div class="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
+            <div class="mx-auto w-full max-w-4xl">
+                <div class="relative">
+                    <div id="mentionDropdown" class="absolute bottom-[calc(100%+10px)] left-0 right-0 z-[60] hidden flex-col overflow-hidden rounded-3xl border border-[#2c2d2f] bg-[#1d1e20] opacity-0 shadow-2xl transition-opacity duration-200">
+                        <div class="flex items-center gap-2 border-b border-[#333537] bg-[#232425] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#c4c7c5]">
+                            <span class="material-symbols-outlined text-[14px]">description</span>
+                            Available Documents
+                        </div>
+                        <div id="mentionList" class="flex max-h-56 flex-col overflow-y-auto py-2"></div>
+                    </div>
+
+                    <form id="chatForm" class="flex min-h-[64px] items-end gap-3 rounded-[30px] border border-[#2a2c2e] bg-[#1b1c1d] px-4 py-3 shadow-[0_20px_80px_-50px_rgba(244,63,94,0.5)] transition-all focus-within:border-[#F43F5E] sm:px-5">
+                        <input type="file" id="fileUpload" class="hidden" accept=".pdf">
+                        <input type="file" id="globalFileUpload" class="hidden" accept=".pdf">
+                        <button type="button" id="uploadBtn" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#333537] bg-[#242526] text-[#c4c7c5] transition-colors hover:text-white" title="Upload session document">
+                            <span class="material-symbols-outlined">attach_file_add</span>
+                        </button>
+                        <textarea id="queryInput" placeholder="Ask about filings, trends, guidance, exposures, or mention a file with @..." required autocomplete="off" rows="1" class="scrollbar-hide max-h-40 flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-white outline-none placeholder:text-[#768390]"></textarea>
+                        <button type="submit" id="submitBtn" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F43F5E] text-white transition-transform active:scale-95" title="Execute analysis">
+                            <span class="material-symbols-outlined">arrow_upward</span>
+                        </button>
+                    </form>
                 </div>
-                <div id="mentionList" class="max-h-48 overflow-y-auto flex flex-col py-2"></div>
             </div>
-            
-            <form id="chatForm" class="flex items-end justify-between px-4 py-3 bg-[#1e1f20] rounded-[28px] border border-[#28292a] shadow-lg focus-within:border-[#F43F5E] w-full transition-all min-h-[56px]">
-                <input type="file" id="fileUpload" class="hidden" accept=".pdf">
-                <button type="button" id="uploadBtn" class="flex items-center justify-center w-8 h-8 mb-0.5 text-[#c4c7c5] shrink-0 hover:text-white transition-colors">
-                    <span class="material-symbols-outlined">add</span>
-                </button>
-                <textarea id="queryInput" placeholder="Enter a prompt here..." required autocomplete="off" rows="1"
-                    class="flex-1 bg-transparent border-none outline-none text-[#e3e3e3] placeholder-[#768390] text-[16px] mx-4 resize-none max-h-40 py-1.5 scrollbar-hide"></textarea>
-                <button type="submit" id="submitBtn" class="flex items-center justify-center w-8 h-8 mb-0.5 rounded-full bg-[#F43F5E] text-white shrink-0 transition-transform active:scale-90" title="Execute Analysis">
-                    <span class="material-symbols-outlined">arrow_upward</span>
-                </button>
-            </form>
         </div>
     </main>
 
-    <!-- History Modal -->
-    <div id="historyModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
-        <div class="w-full max-w-md p-8 bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative">
-            <div class="flex items-center justify-between mb-8">
-                <h2 class="text-lg font-medium">Recent Sessions</h2>
-                <div id="historyCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+    <div id="historyModal" class="fixed inset-0 z-[130] hidden items-center justify-center bg-[#131314]/90 p-4 backdrop-blur-md">
+        <div class="relative w-full max-w-3xl rounded-[32px] border border-[#2a2c2e] bg-[#1b1c1d] p-6 shadow-2xl sm:p-8">
+            <div class="mb-6 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-white">Session Manager</h2>
+                    <p class="mt-1 text-sm text-[#9ba0a6]">Review pinned conversations, rename titles, and remove stale workspaces.</p>
+                </div>
+                <button id="historyCloseBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
-            <div id="historyList" class="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-hide">
-                <!-- History items injected here -->
-            </div>
+            <div id="historyList" class="max-h-[65vh] space-y-3 overflow-y-auto scrollbar-hide"></div>
         </div>
     </div>
 
-    <!-- Source Provenance Modal (Citations) -->
-    <aside id="verificationPanel" class="fixed inset-0 bg-[#131314]/80 backdrop-blur-sm z-[120] flex items-center justify-center hidden">
-        <div class="w-full max-w-5xl h-[85vh] bg-[#1e1f20] rounded-3xl shadow-2xl border border-[#28292a] flex flex-col overflow-hidden m-8">
-            <header class="p-6 border-b border-[#28292a] flex items-center justify-between">
+    <aside id="verificationPanel" class="fixed inset-0 z-[140] hidden items-center justify-center bg-[#131314]/80 p-4 backdrop-blur-sm lg:p-8">
+        <div class="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[32px] border border-[#28292a] bg-[#1e1f20] shadow-2xl">
+            <header class="flex items-center justify-between border-b border-[#28292a] px-5 py-4 sm:px-6">
                 <div class="flex items-center gap-3 text-[#F43F5E]">
                     <span class="material-symbols-outlined text-[28px]">description</span>
                     <div>
                         <h2 class="text-base font-semibold text-[#e3e3e3]">Citation Context</h2>
-                        <p id="citationDocName" class="text-[10px] text-[#768390] uppercase tracking-widest font-bold mt-0.5"></p>
+                        <p id="citationDocName" class="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[#768390]"></p>
                     </div>
                 </div>
-                <div id="closeVerificationBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors p-2"><span class="material-symbols-outlined">close</span></div>
+                <button id="closeVerificationBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </header>
-            <div class="flex-1 flex overflow-hidden">
-                <div class="flex-1 bg-[#131314] relative border-r border-[#28292a]">
-                    <div id="sourceLoading" class="absolute inset-0 flex items-center justify-center hidden z-10 bg-[#131314]/50"><div class="animate-pulse text-xs text-[#F43F5E] font-mono">LOADING PREVIEW...</div></div>
-                    <iframe id="sourcePreview" class="w-full h-full border-none" src="about:blank"></iframe>
+            <div class="flex flex-1 flex-col overflow-hidden lg:flex-row">
+                <div class="relative flex-1 border-b border-[#28292a] bg-[#131314] lg:border-b-0 lg:border-r">
+                    <div id="sourceLoading" class="absolute inset-0 z-10 hidden items-center justify-center bg-[#131314]/50"><div class="animate-pulse font-mono text-xs text-[#F43F5E]">LOADING PREVIEW...</div></div>
+                    <iframe id="sourcePreview" class="h-full w-full border-none" src="about:blank"></iframe>
                 </div>
-                <div class="w-80 p-8 bg-[#1e1f20] overflow-y-auto">
+                <div class="w-full overflow-y-auto bg-[#1e1f20] p-6 lg:w-[340px] lg:p-8">
                     <div class="mb-8">
-                        <div class="text-[10px] font-bold uppercase text-[#768390] mb-3 tracking-widest">Verified Segment</div>
-                        <p id="contextExcerpt" class="text-[15px] italic leading-relaxed text-[#e3e3e3] font-body"></p>
+                        <div class="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#768390]">Verified Segment</div>
+                        <p id="contextExcerpt" class="font-body text-[15px] italic leading-relaxed text-[#e3e3e3]"></p>
                     </div>
                     <div id="metadataDisplay" class="space-y-6"></div>
                 </div>
@@ -184,60 +430,103 @@
         </div>
     </aside>
 
-    <!-- Modals -->
-    <div id="settingsModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
-        <div class="w-full max-w-sm p-8 bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative">
-            <div class="flex items-center justify-between mb-8">
-                <h2 class="text-lg font-medium">System Parameters</h2>
-                <div id="settingsCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+    <div id="settingsModal" class="fixed inset-0 z-[130] hidden items-center justify-center bg-[#131314]/90 p-4 backdrop-blur-md">
+        <div class="relative w-full max-w-lg rounded-[32px] border border-[#2a2c2e] bg-[#1b1c1d] p-6 shadow-2xl sm:p-8">
+            <div class="mb-8 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">System Parameters</h2>
+                    <p class="mt-1 text-sm text-[#9ba0a6]">Tune retrieval depth, relevance filtering, and generation style.</p>
+                </div>
+                <button id="settingsCloseBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
             <div class="space-y-10" id="settingsForm">
                 <div class="space-y-4">
                     <div class="flex justify-between text-xs font-mono"><span>Top-K Retrieval</span><span id="topKValue" class="text-[#F43F5E]">3</span></div>
-                    <input type="range" id="topKRange" min="1" max="10" step="1" value="3" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                    <input type="range" id="topKRange" min="1" max="10" step="1" value="3" class="h-1 w-full cursor-pointer appearance-none rounded-full bg-[#28292a] accent-[#F43F5E]">
                 </div>
                 <div class="space-y-4">
                     <div class="flex justify-between text-xs font-mono"><span>Relevance Threshold</span><span id="thresholdValue" class="text-[#F43F5E]">0.3</span></div>
-                    <input type="range" id="thresholdRange" min="0" max="1" step="0.05" value="0.3" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                    <input type="range" id="thresholdRange" min="0" max="1" step="0.05" value="0.3" class="h-1 w-full cursor-pointer appearance-none rounded-full bg-[#28292a] accent-[#F43F5E]">
                 </div>
                 <div class="space-y-4">
                     <div class="flex justify-between text-xs font-mono"><span>Model Temperature</span><span id="tempValue" class="text-[#F43F5E]">0.7</span></div>
-                    <input type="range" id="tempRange" min="0" max="1.5" step="0.1" value="0.7" class="w-full h-1 bg-[#28292a] appearance-none cursor-pointer accent-[#F43F5E] rounded-full">
+                    <input type="range" id="tempRange" min="0" max="1.5" step="0.1" value="0.7" class="h-1 w-full cursor-pointer appearance-none rounded-full bg-[#28292a] accent-[#F43F5E]">
                 </div>
             </div>
-            <button id="saveSettingsBtn" class="mt-12 w-full py-3 bg-[#F43F5E] text-white text-sm font-bold rounded-full hover:bg-[#e11d48] transition-colors">Apply Changes</button>
+            <button id="saveSettingsBtn" class="mt-12 w-full rounded-full bg-[#F43F5E] py-3 text-sm font-bold text-white transition-colors hover:bg-[#e11d48]">Apply Changes</button>
         </div>
     </div>
 
-    <div id="kbModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
-        <div id="kbDropOverlay" class="absolute inset-0 bg-[#F43F5E]/10 backdrop-blur-sm z-[200] hidden flex-col items-center justify-center border-4 border-dashed border-[#F43F5E] m-4 rounded-3xl transition-all pointer-events-none">
-            <span class="material-symbols-outlined text-[#F43F5E] text-6xl mb-4">cloud_upload</span>
-            <h2 class="text-2xl font-bold text-[#e3e3e3]">Drop PDF to Upload Globally</h2>
-        </div>
-        <div class="w-full max-w-2xl p-8 h-[70vh] flex flex-col bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative z-10">
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-lg font-medium">Knowledge Vault</h2>
-                    <button id="globalUploadBtn" class="flex items-center gap-2 bg-[#28292a] hover:bg-[#333537] text-[#e3e3e3] px-3 py-1.5 rounded-full text-xs transition-colors border border-[#333537] hover:border-[#F43F5E]">
-                        <span class="material-symbols-outlined text-[16px]">upload</span> Upload
+    <div id="statsModal" class="fixed inset-0 z-[130] hidden items-center justify-center bg-[#131314]/90 p-4 backdrop-blur-md">
+        <div class="relative w-full max-w-2xl rounded-[32px] border border-[#2a2c2e] bg-[#1b1c1d] p-6 shadow-2xl sm:p-8">
+            <div class="mb-8 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Portfolio Stats</h2>
+                    <p class="mt-1 text-sm text-[#9ba0a6]">A quick snapshot of your indexed coverage and tracked entities.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="statsRefreshBtn" type="button" class="rounded-full border border-[#333537] px-4 py-2 text-sm text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:text-white">Refresh</button>
+                    <button id="statsCloseBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white">
+                        <span class="material-symbols-outlined">close</span>
                     </button>
-                    <input type="file" id="globalFileUpload" class="hidden" accept=".pdf">
-                </div>
-                <div id="kbCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
-            </div>
-            
-            <!-- Progress Bar UI -->
-            <div id="kbProgressContainer" class="w-full mb-6 hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <span id="kbProgressText" class="text-xs text-[#e3e3e3] font-medium">Indexing...</span>
-                    <span id="kbProgressPct" class="text-xs text-[#F43F5E] font-mono">0%</span>
-                </div>
-                <div class="w-full bg-[#28292a] rounded-full h-1.5 overflow-hidden">
-                    <div id="kbProgressBar" class="bg-[#F43F5E] h-1.5 rounded-full transition-all duration-300 w-0"></div>
                 </div>
             </div>
-            
-            <div id="docListContainer" class="flex-1 overflow-y-auto space-y-4 scrollbar-hide"></div>
+            <div class="grid gap-4 sm:grid-cols-3">
+                <div class="rounded-3xl border border-[#2c2d2f] bg-[#161718] p-5">
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Documents</div>
+                    <div id="statsDocumentCount" class="mt-3 text-3xl font-semibold text-white">0</div>
+                </div>
+                <div class="rounded-3xl border border-[#2c2d2f] bg-[#161718] p-5">
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Storage</div>
+                    <div id="statsStorageValue" class="mt-3 text-3xl font-semibold text-white">0 MB</div>
+                </div>
+                <div class="rounded-3xl border border-[#2c2d2f] bg-[#161718] p-5">
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Last Updated</div>
+                    <div id="statsUpdatedValue" class="mt-3 text-lg font-semibold text-white">-</div>
+                </div>
+            </div>
+            <div class="mt-4 rounded-3xl border border-[#2c2d2f] bg-[#161718] p-5">
+                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f848a]">Tracked Entities</div>
+                <div id="statsEntitiesList" class="mt-4 flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="kbModal" class="fixed inset-0 z-[130] hidden items-center justify-center bg-[#131314]/90 p-4 backdrop-blur-md">
+        <div id="kbDropOverlay" class="pointer-events-none absolute inset-0 z-[200] m-4 hidden flex-col items-center justify-center rounded-[32px] border-4 border-dashed border-[#F43F5E] bg-[#F43F5E]/10 text-center backdrop-blur-sm transition-all">
+            <span class="material-symbols-outlined mb-4 text-6xl text-[#F43F5E]">cloud_upload</span>
+            <h2 class="px-6 text-2xl font-bold text-[#e3e3e3]">Drop PDF to Upload Globally</h2>
+        </div>
+        <div class="relative z-10 flex h-[82vh] w-full max-w-4xl flex-col rounded-[32px] border border-[#2a2c2e] bg-[#1b1c1d] p-6 shadow-2xl sm:p-8">
+            <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Knowledge Vault</h2>
+                    <p class="mt-1 text-sm text-[#9ba0a6]">Manage globally indexed PDFs used across sessions.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="globalUploadBtn" class="flex items-center gap-2 rounded-full border border-[#333537] bg-[#232425] px-4 py-2 text-sm text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:text-white">
+                        <span class="material-symbols-outlined text-[16px]">upload</span>
+                        Upload
+                    </button>
+                    <button id="kbCloseBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#333537] bg-[#232425] text-[#c4c7c5] transition-colors hover:text-white">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="kbProgressContainer" class="mb-6 hidden w-full">
+                <div class="mb-2 flex items-center justify-between">
+                    <span id="kbProgressText" class="text-xs font-medium text-[#e3e3e3]">Indexing...</span>
+                    <span id="kbProgressPct" class="font-mono text-xs text-[#F43F5E]">0%</span>
+                </div>
+                <div class="h-1.5 w-full overflow-hidden rounded-full bg-[#28292a]">
+                    <div id="kbProgressBar" class="h-1.5 w-0 rounded-full bg-[#F43F5E] transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <div id="docListContainer" class="flex-1 space-y-4 overflow-y-auto scrollbar-hide"></div>
         </div>
     </div>
 

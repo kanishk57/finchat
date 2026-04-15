@@ -9,6 +9,7 @@ import os
 import logging
 from services.document_service import DocumentService
 from api_routes.vector_store_ref import set_vector_store, get_vector_store
+from config import CHUNK_SIZE, CHUNK_OVERLAP
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
@@ -61,7 +62,7 @@ async def _index_subupload(filename: str, contents: bytes, session_id: str, vect
     
     def process():
         set_progress("indexing", f"Extracting {filename}...", 10)
-        pages = extract_pdf_pages_from_bytes(contents, filename, chunk_size=1000, overlap=200)
+        pages = extract_pdf_pages_from_bytes(contents, filename, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP)
         for page in pages:
             page['session_id'] = session_id
         
@@ -138,7 +139,7 @@ async def get_portfolio_stats():
 async def _reinitialize_system():
     """Background task to reinitialize the system"""
     # Import here to avoid circular imports
-    from main import initialize_system
+    from core.initialization import initialize_system
     import asyncio
     from api_routes.vector_store_ref import set_vector_store
     

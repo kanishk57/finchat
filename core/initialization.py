@@ -20,6 +20,9 @@ from config import (
     INITIAL_K,
     FINAL_TOP_K,
     DEFAULT_THRESHOLD as THRESHOLD,
+    CHUNK_SIZE,
+    CHUNK_OVERLAP,
+    EMBEDDING_DIM,
     INDEX_PATH,
     METADATA_PATH
 )
@@ -65,7 +68,7 @@ def initialize_system() -> Tuple[VectorStore, int, int]:
         if not pdf_files:
             console.print(f"[bold yellow]Warning:[/bold yellow] No PDFs found in {PDF_DIR}, starting with empty store.")
             set_progress("idle", "System ready.", 100)
-            return VectorStore(768), 0, 0
+            return VectorStore(EMBEDDING_DIM), 0, 0
 
         # 3. Indexing Logic
         vector_store = None
@@ -74,7 +77,7 @@ def initialize_system() -> Tuple[VectorStore, int, int]:
         num_chunks = 0
 
         if os.path.exists(INDEX_PATH) and os.path.exists(METADATA_PATH):
-            vector_store = VectorStore(768) 
+            vector_store = VectorStore(EMBEDDING_DIM)
             if vector_store.load(INDEX_PATH, METADATA_PATH):
                 indexed_docs = {m["doc_name"] for m in vector_store.metadata}
                 current_docs = {os.path.basename(f) for f in pdf_files}
@@ -92,7 +95,7 @@ def initialize_system() -> Tuple[VectorStore, int, int]:
         if FORCE_REBUILD:
             set_progress("indexing", f"Analyzing {len(pdf_files)} documents...", 20)
             status.update(f"[bold blue]Analyzing {len(pdf_files)} documents...")
-            pages = extract_pdf_pages(pdf_files, chunk_size=1000, overlap=200)
+            pages = extract_pdf_pages(pdf_files, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP)
             num_chunks = len(pages)
             
             set_progress("embedding", "Generating embeddings...", 30)

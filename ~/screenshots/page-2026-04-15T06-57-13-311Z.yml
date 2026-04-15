@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - button "menu" [ref=e4] [cursor=pointer]:
+      - generic [ref=e5]: menu
+    - generic [ref=e7]: terminal
+    - navigation [ref=e8]:
+      - generic "New Analysis" [ref=e9] [cursor=pointer]:
+        - generic [ref=e10]: add
+      - generic "Recent History" [ref=e11] [cursor=pointer]:
+        - generic [ref=e12]: history
+      - generic "Vault" [ref=e13] [cursor=pointer]:
+        - generic [ref=e14]: database
+    - generic "Settings" [ref=e16] [cursor=pointer]:
+      - generic [ref=e17]: settings
+  - main [ref=e18]:
+    - generic [ref=e20]:
+      - generic [ref=e21]: FinChat
+      - generic [ref=e22]: chevron_right
+      - generic [ref=e23]: Analysis
+    - generic [ref=e26]:
+      - heading "How can I help with your analysis?" [level=1] [ref=e27]
+      - generic [ref=e28]:
+        - generic [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - generic [ref=e31]: query_stats
+            - generic [ref=e32]: Revenue Analysis
+          - paragraph [ref=e33]: Analyze $NVDA inventory and revenue trends.
+        - generic [ref=e34] [cursor=pointer]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: security
+            - generic [ref=e37]: Exposure Assessment
+          - paragraph [ref=e38]: Evaluate debt risk across retail sectors.
+    - generic [ref=e40]:
+      - button "add" [ref=e41] [cursor=pointer]:
+        - generic [ref=e42]: add
+      - textbox "Enter a prompt here..." [ref=e43]
+      - button "arrow_upward" [ref=e44] [cursor=pointer]:
+        - generic [ref=e45]: arrow_upward

@@ -1,7 +1,4 @@
 import os
-import sys
-import logging
-from contextlib import contextmanager
 
 # Suppress HuggingFace and Transformers verbose logging/warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -9,24 +6,8 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["TRANSFORMERS_VERBOSITY"] = "error"
 os.environ["TQDM_DISABLE"] = "1" # Disable TQDM progress bars globally
 
-@contextmanager
-def suppress_stdout_stderr():
-    """A context manager that redirects stdout and stderr to devnull"""
-    with open(os.devnull, 'w') as fnull:
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        sys.stdout = fnull
-        sys.stderr = fnull
-        try:
-            yield
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-
 import transformers
 transformers.logging.set_verbosity_error()
-
-from sentence_transformers import SentenceTransformer, CrossEncoder
 
 # Import our model manager
 from models.model_manager import get_embedding_model, get_reranker_model

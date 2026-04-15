@@ -1,9 +1,7 @@
-import os
-import sys
 from core.initialization import initialize_system, build_prompt
 from embeddings.embedder import embed_query, rerank_results
-from vector_store.faiss_index import VectorStore
 from llm.generator import generate_answer
+from config import INITIAL_K, FINAL_TOP_K
 
 from rich.console import Console
 from rich.panel import Panel
