@@ -22,7 +22,7 @@ APP_VERSION: str = "2.6.3"
 INITIAL_K: int = 50          # Initial retrieval count
 FINAL_TOP_K: int = 5         # Final reranked results count
 DEFAULT_THRESHOLD: float = 0.05 # Relevance score threshold (permissive with sigmoid)
-DEFAULT_TEMPERATURE: float = 0.2 # Lower temperature for better financial precision
+DEFAULT_TEMPERATURE: float = 0.1 # Lower temperature for better financial precision
 
 # PDF Processing
 CHUNK_SIZE: int = 1000

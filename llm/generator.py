@@ -7,17 +7,12 @@ from config import LLAMA_SERVER_URL
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a highly precise Financial Analysis Assistant. 
-Your goal is to provide a structured, factual answer based ONLY on the provided context.
-
-### CONSTRAINTS
-- Cite every claim using [Source X] format at the end of the sentence.
-- If multiple documents provide conflicting data, highlight the discrepancy.
-- If the information is not present, respond: "The provided documents do not contain information regarding [X]."
-- Keep the tone professional and editorial."""
+SYSTEM_PROMPT = """You are a precise analytical assistant. You will be provided with retrieved context chunks that suffer from a pipeline error: they are not grouped by their parent documents. 
+CRITICAL INSTRUCTION: You must aggressively deduplicate citations. Group all information by the source filename or document title. NEVER list the same document multiple times in your sources or citations. Cite the document exactly once, and if necessary, append the specific pages or chunk IDs within that single consolidated citation. 
+Be direct and avoid filler text."""
 
 
-def generate_answer(prompt: str, max_tokens: int = 1000, temperature: float = 0.7, history: list = None) -> Generator[str, None, None]:
+def generate_answer(prompt: str, max_tokens: int = 1000, temperature: float = 0.1, history: list = None) -> Generator[str, None, None]:
     """
     Yields chunks of the generated answer in real-time.
     Ensures strict alternation of messages for Llama-3/Gemma-style templates.
@@ -63,6 +58,7 @@ def generate_answer(prompt: str, max_tokens: int = 1000, temperature: float = 0.
         "max_tokens": max_tokens,
         "temperature": temperature,
         "top_p": 0.95,
+        "top_k": 40,
         "stream": True
     }
 

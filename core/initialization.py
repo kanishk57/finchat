@@ -35,15 +35,7 @@ def build_prompt(query, retrieved_results):
     from llm.context_builder import build_context
     
     context = build_context(retrieved_results)
-    return f"""
-### CONTEXT
-{context}
-
-### USER QUERY
-{query}
-
-### ANALYSIS AND RESPONSE
-"""
+    return f"{query}\n\nContext Chunks:\n{context}"
 
 
 from core.progress import set_progress

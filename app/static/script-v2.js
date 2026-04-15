@@ -5,25 +5,42 @@ const chatContainerWrapper = document.getElementById('chatContainerWrapper');
 const submitBtn = document.getElementById('submitBtn');
 const welcomeScreen = document.getElementById('welcomeScreen');
 
-// Sidebar/Drawer logic
-const metadataSidebar = document.getElementById('metadataSidebar');
-const toggleMetadataBtn = document.getElementById('toggleMetadataBtn');
-const closeMetadataBtn = document.getElementById('closeMetadataBtn');
+// Sidebar logic
+const sidebar = document.getElementById('sidebar');
+const mainCanvas = document.getElementById('mainCanvas');
+const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
+const sidebarTexts = document.querySelectorAll('.sidebar-text');
 
-toggleMetadataBtn?.addEventListener('click', () => {
-    metadataSidebar.classList.toggle('drawer-hidden');
-    metadataSidebar.classList.toggle('drawer-visible');
+let isSidebarExpanded = false;
+
+sidebarToggleBtn?.addEventListener('click', () => {
+    isSidebarExpanded = !isSidebarExpanded;
+    if (isSidebarExpanded) {
+        sidebar.classList.remove('w-16');
+        sidebar.classList.add('w-64');
+        mainCanvas.classList.remove('ml-16');
+        mainCanvas.classList.add('ml-64');
+        sidebarToggleIcon.textContent = 'close';
+        sidebarTexts.forEach(el => el.classList.remove('hidden'));
+    } else {
+        sidebar.classList.add('w-16');
+        sidebar.classList.remove('w-64');
+        mainCanvas.classList.add('ml-16');
+        mainCanvas.classList.remove('ml-64');
+        sidebarToggleIcon.textContent = 'menu';
+        sidebarTexts.forEach(el => el.classList.add('hidden'));
+    }
 });
 
-closeMetadataBtn?.addEventListener('click', () => {
-    metadataSidebar.classList.add('drawer-hidden');
-    metadataSidebar.classList.remove('drawer-visible');
-});
+// History Modal Logic
+const historyModal = document.getElementById('historyModal');
+const historyList = document.getElementById('historyList');
+const historyCloseBtn = document.getElementById('historyCloseBtn');
 
-function openDrawer() {
-    metadataSidebar.classList.remove('drawer-hidden');
-    metadataSidebar.classList.add('drawer-visible');
-}
+historyCloseBtn?.addEventListener('click', () => {
+    historyModal.classList.add('hidden');
+});
 
 // Toast Notification
 function showToast(message) {
@@ -117,10 +134,11 @@ window.showVerification = function(ref, msgId) {
     const citation = messageCitationsMap.get(msgId)?.find(c => c.ref === ref);
     if (!citation) return;
 
+    document.getElementById('citationDocName').textContent = citation.doc_name;
     const meta = document.getElementById('metadataDisplay');
     meta.innerHTML = `
-        <div class="py-2 border-b border-[#28292a]"><div class="text-[10px] text-[#c4c7c5] font-bold uppercase">Asset</div><div class="text-xs font-mono">${citation.doc_name}</div></div>
-        <div class="py-2 border-b border-[#28292a]"><div class="text-[10px] text-[#c4c7c5] font-bold uppercase">Page</div><div class="text-xs font-mono">${citation.page}</div></div>
+        <div class="py-2 border-b border-[#28292a]"><div class="text-[10px] text-[#c4c7c5] font-bold uppercase tracking-widest mb-1">Asset</div><div class="text-xs font-mono text-[#e3e3e3]">${citation.doc_name}</div></div>
+        <div class="py-2 border-b border-[#28292a]"><div class="text-[10px] text-[#c4c7c5] font-bold uppercase tracking-widest mb-1">Page</div><div class="text-xs font-mono text-[#e3e3e3]">${citation.page}</div></div>
     `;
     document.getElementById('contextExcerpt').textContent = citation.text || 'Document segment.';
     
@@ -139,10 +157,8 @@ function saveCurrentChat() {
     let session = chatSessions.find(s => s.id === currentSessionId);
     if(!session) return;
     session.messages = Array.from(chatContainer.querySelectorAll('[data-message-id]')).map(msgDiv => {
-        // Fallback for role identification if data-role is somehow missing or corrupted
         let role = msgDiv.getAttribute('data-role');
         if (!role) {
-            // Check for the assistant's distinctive background color
             role = msgDiv.classList.contains('bg-[#1e1f20]') ? 'assistant' : 'user';
         }
         
@@ -163,10 +179,8 @@ function renderChatArea() {
     
     document.getElementById('activeAnalysisTitle').textContent = session.title;
     session.messages.forEach(item => {
-        // Robust role detection for old/broken localStorage data
         let role = item.role;
         if (!role) {
-            // Infer: Assistant messages usually have citations
             role = (item.citations && item.citations.length > 0) ? 'assistant' : 'user';
         }
         
@@ -188,23 +202,22 @@ document.getElementById('newChatBtn')?.addEventListener('click', () => {
         currentSessionId = chatSessions[0].id;
     }
     renderChatArea();
+    if (isSidebarExpanded) sidebarToggleBtn.click(); // Close on action
 });
-document.getElementById('newChatMobileBtn')?.addEventListener('click', () => document.getElementById('newChatBtn')?.click());
 
 document.getElementById('historyToggle')?.addEventListener('click', () => {
-    openDrawer();
-    document.getElementById('metadataSidebar').innerHTML = `
-        <h3 class="text-sm font-bold text-[#e3e3e3] mb-4">Recent Sessions</h3>
-        <div class="flex flex-col gap-2">
-            ${chatSessions.map(s => `
-                <div class="flex items-center justify-between p-2 bg-[#28292a] rounded group">
-                    <div class="flex-1 cursor-pointer text-xs truncate mr-2" onclick="currentSessionId='${s.id}'; renderChatArea();">${s.title}</div>
-                    <button onclick="deleteSession('${s.id}')" class="opacity-0 group-hover:opacity-100 text-[#768390] hover:text-[#F43F5E] transition-opacity" title="Delete Session">
-                        <span class="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
-                </div>
-            `).join('')}
-        </div>`;
+    historyModal.classList.remove('hidden');
+    historyList.innerHTML = chatSessions.map(s => `
+        <div class="flex items-center justify-between p-4 bg-[#131314] rounded-xl border border-[#28292a] group hover:border-[#F43F5E] transition-all cursor-pointer">
+            <div class="flex-1 text-sm truncate mr-4 text-[#e3e3e3]" onclick="currentSessionId='${s.id}'; renderChatArea(); document.getElementById('historyModal').classList.add('hidden');">
+                ${s.title}
+            </div>
+            <button onclick="deleteSession('${s.id}')" class="p-2 text-[#768390] hover:text-[#F43F5E] transition-colors" title="Delete Session">
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+        </div>
+    `).join('');
+    if (isSidebarExpanded) sidebarToggleBtn.click();
 });
 
 async function deleteSession(id) {
@@ -230,7 +243,6 @@ async function deleteSession(id) {
     // Refresh the drawer UI if it's open
     document.getElementById('historyToggle')?.click();
 }
-document.getElementById('historyToggleMobile')?.addEventListener('click', () => document.getElementById('historyToggle')?.click());
 
 let progressPollInterval = null;
 
@@ -335,7 +347,6 @@ async function deleteDocument(filename) {
 }
 
 document.getElementById('kbOpenBtn')?.addEventListener('click', openKnowledgeVault);
-document.getElementById('kbOpenMobileBtn')?.addEventListener('click', openKnowledgeVault);
 document.getElementById('kbCloseBtn')?.addEventListener('click', () => document.getElementById('kbModal').classList.add('hidden'));
 
 // Settings Logic
@@ -393,10 +404,6 @@ document.getElementById('tempRange')?.addEventListener('input', (e) => {
 });
 
 document.getElementById('headerSettingsBtn')?.addEventListener('click', () => {
-    loadSettings();
-    document.getElementById('settingsModal').classList.remove('hidden');
-});
-document.getElementById('headerSettingsMobileBtn')?.addEventListener('click', () => {
     loadSettings();
     document.getElementById('settingsModal').classList.remove('hidden');
 });
@@ -654,7 +661,6 @@ chatForm.addEventListener('submit', async (e) => {
                     const data = JSON.parse(trimmedLine.substring(6));
                     if (data.type === 'citations') { 
                         buildCitationsHTML(data.citations, aiMsgId, aiSources); 
-                        openDrawer(); 
                     } else if (data.content) {
                         fullText += data.content;
                         aiContent.innerHTML = renderMarkdownLinks(fullText, aiMsgId).split('\n\n').map(p => `<p class="mb-4">${p.replace(/\n/g, '<br>')}</p>`).join('');

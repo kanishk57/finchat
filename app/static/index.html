@@ -38,24 +38,43 @@
 <body class="bg-background text-text-main font-body h-screen overflow-hidden flex flex-row">
 
     <!-- Sidebar Rail -->
-    <aside id="sidebar" class="w-16 h-full flex flex-col justify-between items-center py-6 bg-[#131314] border-r border-[#28292a] z-[100] flex-shrink-0 fixed left-0 top-0">
-        <div class="mt-2">
+    <aside id="sidebar" class="w-16 h-full flex flex-col items-center py-6 bg-[#131314] border-r border-[#28292a] z-[100] flex-shrink-0 fixed left-0 top-0 transition-all duration-300">
+        <div class="w-full flex items-center justify-center mb-8 px-4">
+            <button id="sidebarToggleBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined" id="sidebarToggleIcon">menu</span>
+            </button>
+            <span class="sidebar-text hidden ml-3 text-[18px] font-bold text-[#e3e3e3] truncate">FinChat</span>
+        </div>
+
+        <div class="mb-8">
             <span class="material-symbols-outlined text-[#F43F5E] text-[28px]">terminal</span>
         </div>
         
         <nav class="flex flex-col items-center gap-6 w-full">
-            <div id="newChatBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="New Analysis"><span class="material-symbols-outlined">add</span></div>
-            <div id="historyToggle" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Recent History"><span class="material-symbols-outlined">history</span></div>
-            <div id="kbOpenBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Vault"><span class="material-symbols-outlined">database</span></div>
+            <div id="newChatBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="New Analysis">
+                <span class="material-symbols-outlined">add</span>
+                <span class="sidebar-text hidden ml-4 text-sm font-medium">New Chat</span>
+            </div>
+            <div id="historyToggle" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Recent History">
+                <span class="material-symbols-outlined">history</span>
+                <span class="sidebar-text hidden ml-4 text-sm font-medium">History</span>
+            </div>
+            <div id="kbOpenBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Vault">
+                <span class="material-symbols-outlined">database</span>
+                <span class="sidebar-text hidden ml-4 text-sm font-medium">Vault</span>
+            </div>
         </nav>
 
-        <div class="mb-4">
-            <div id="headerSettingsBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center justify-center w-full" title="Settings"><span class="material-symbols-outlined">settings</span></div>
+        <div class="mt-auto mb-4 w-full">
+            <div id="headerSettingsBtn" class="cursor-pointer hover:text-[#F43F5E] transition-colors flex items-center w-full px-4" title="Settings">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="sidebar-text hidden ml-4 text-sm font-medium">Settings</span>
+            </div>
         </div>
     </aside>
 
     <!-- Main Canvas -->
-    <main id="mainCanvas" class="ml-16 flex-1 h-screen flex flex-col relative bg-background">
+    <main id="mainCanvas" class="ml-16 flex-1 h-screen flex flex-col relative bg-background transition-all duration-300">
         
         <!-- Drag & Drop Overlay for Main Canvas -->
         <div id="mainDropOverlay" class="absolute inset-0 bg-[#F43F5E]/10 backdrop-blur-sm z-[200] hidden flex-col items-center justify-center border-4 border-dashed border-[#F43F5E] rounded-2xl m-4 transition-all pointer-events-none">
@@ -70,7 +89,6 @@
                 <span class="material-symbols-outlined text-xs">chevron_right</span>
                 <span id="activeAnalysisTitle" class="text-[#e3e3e3] font-medium">Analysis</span>
             </div>
-            <button id="toggleMetadataBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">info</span></button>
         </header>
 
         <!-- Chat Stage (Scrolling Area) -->
@@ -124,31 +142,43 @@
         </div>
     </main>
 
-    <!-- Session Data Drawer -->
-    <aside id="metadataSidebar" class="fixed right-0 top-0 w-80 h-full bg-[#1e1f20] shadow-2xl z-50 p-6 flex flex-col border-l border-[#28292a] transition-transform duration-300 drawer-hidden">
-    </aside>
+    <!-- History Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-[#131314]/90 backdrop-blur-md z-[110] flex items-center justify-center hidden">
+        <div class="w-full max-w-md p-8 bg-[#1e1f20] rounded-3xl border-none shadow-2xl relative">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-lg font-medium">Recent Sessions</h2>
+                <div id="historyCloseBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+            </div>
+            <div id="historyList" class="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                <!-- History items injected here -->
+            </div>
+        </div>
+    </div>
 
-    <!-- Source Provance Overlay -->
-    <aside id="verificationPanel" class="fixed inset-0 bg-[#131314]/80 backdrop-blur-sm z-[100] flex items-center justify-center hidden">
-        <div class="w-full max-w-4xl h-[80vh] bg-[#1e1f20] rounded-3xl shadow-2xl border border-[#28292a] flex flex-col overflow-hidden m-8">
-            <header class="p-4 border-b border-[#28292a] flex items-center justify-between">
-                <div class="flex items-center gap-2 text-[#F43F5E]">
-                    <span class="material-symbols-outlined">description</span>
-                    <span class="text-sm font-medium">Source Provenance</span>
+    <!-- Source Provenance Modal (Citations) -->
+    <aside id="verificationPanel" class="fixed inset-0 bg-[#131314]/80 backdrop-blur-sm z-[120] flex items-center justify-center hidden">
+        <div class="w-full max-w-5xl h-[85vh] bg-[#1e1f20] rounded-3xl shadow-2xl border border-[#28292a] flex flex-col overflow-hidden m-8">
+            <header class="p-6 border-b border-[#28292a] flex items-center justify-between">
+                <div class="flex items-center gap-3 text-[#F43F5E]">
+                    <span class="material-symbols-outlined text-[28px]">description</span>
+                    <div>
+                        <h2 class="text-base font-semibold text-[#e3e3e3]">Citation Context</h2>
+                        <p id="citationDocName" class="text-[10px] text-[#768390] uppercase tracking-widest font-bold mt-0.5"></p>
+                    </div>
                 </div>
-                <div id="closeVerificationBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors"><span class="material-symbols-outlined">close</span></div>
+                <div id="closeVerificationBtn" class="cursor-pointer text-[#c4c7c5] hover:text-[#F43F5E] transition-colors p-2"><span class="material-symbols-outlined">close</span></div>
             </header>
             <div class="flex-1 flex overflow-hidden">
-                <div class="flex-1 bg-[#131314] relative">
-                    <div id="sourceLoading" class="absolute inset-0 flex items-center justify-center hidden"><div class="animate-pulse text-xs text-[#F43F5E] font-mono">SYNCING...</div></div>
+                <div class="flex-1 bg-[#131314] relative border-r border-[#28292a]">
+                    <div id="sourceLoading" class="absolute inset-0 flex items-center justify-center hidden z-10 bg-[#131314]/50"><div class="animate-pulse text-xs text-[#F43F5E] font-mono">LOADING PREVIEW...</div></div>
                     <iframe id="sourcePreview" class="w-full h-full border-none" src="about:blank"></iframe>
                 </div>
-                <div class="w-80 p-6 bg-[#1e1f20] border-l border-[#28292a] overflow-y-auto">
-                    <div class="mb-6">
-                        <div class="text-[10px] font-bold uppercase text-[#768390] mb-2">Context Segment</div>
-                        <p id="contextExcerpt" class="text-sm italic leading-relaxed text-[#e3e3e3]"></p>
+                <div class="w-80 p-8 bg-[#1e1f20] overflow-y-auto">
+                    <div class="mb-8">
+                        <div class="text-[10px] font-bold uppercase text-[#768390] mb-3 tracking-widest">Verified Segment</div>
+                        <p id="contextExcerpt" class="text-[15px] italic leading-relaxed text-[#e3e3e3] font-body"></p>
                     </div>
-                    <div id="metadataDisplay" class="space-y-4"></div>
+                    <div id="metadataDisplay" class="space-y-6"></div>
                 </div>
             </div>
         </div>
