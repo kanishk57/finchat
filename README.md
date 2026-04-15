@@ -1,52 +1,41 @@
-# FinChat: Minimal Analyst Terminal
+# FinChat
 
-A high-performance, institutional-grade Retrieval-Augmented Generation (RAG) system tailored for precise financial analysis. FinChat features a "Retrieve-then-Rerank" architecture with a clean, minimal, Helvetica-based interface designed for deep focus and reliability.
+FinChat is a FastAPI-based RAG workspace for financial PDFs. It combines hybrid retrieval, reranking, and cited responses in a focused chat interface.
 
-## 🚀 Key Features
+## Overview
 
-### ⚖️ Intelligence & RAG Protocol
-- **Hybrid Search**: Combines Dense Retrieval (BAAI/bge-base-en-v1.5) with Sparse Retrieval (BM25).
-- **Cross-Encoder Reranking**: Uses `BAAI/bge-reranker-base` for extreme precision.
-- **Protocol Tuning**: Dynamic control over Top-K context, relevance thresholds, and LLM temperature.
-- **Data Verification**: Integrated side panel for real-time document verification with PDF page rendering.
+- Hybrid search with FAISS and BM25
+- Cross-encoder reranking for final context selection
+- PDF upload, indexing, and session-scoped documents
+- Citations with in-app PDF preview
+- Persistent chat sessions in the browser
 
-### 📁 Management & Reporting
-- **Knowledge Base**: Interactive dashboard to list, search, and redact indexed institutional documents.
-- **Instant Upload**: Direct PDF upload with automated background re-indexing.
-- **Portfolio Stats**: Aggregated data visualization of indexed assets and detected entities.
-- **Institutional Export**: Generate and download professional markdown reports of any analysis session.
+## Stack
 
-### 🖋️ Minimalist Web Interface
-- **Analyst UI**: A high-contrast, light-themed terminal optimized for readability using Helvetica Neue.
-- **Multi-Session Logic**: Manage multiple independent ledgers with local persistence via `localStorage`.
-- **Responsive Terminal**: Full-page layout with a collapsible sidebar and intelligent floating controls.
-- **Production Optimized**: Localized Tailwind CSS and zero external dependencies for high stability.
+- Backend: FastAPI, Python
+- Retrieval: FAISS, BM25, sentence-transformers
+- Parsing: `pypdf`
+- Frontend: Vanilla JS, Tailwind
+- LLM access: llama.cpp REST API
 
-## 🛠️ Architecture
+## Setup
 
-1.  **Ingestion**: `pypdf` extracts text and metadata (filing dates, reliability) -> Semantic splitter creates contextual chunks.
-2.  **Indexing**: Chunks embedded via BGE-Base and stored in a hybrid FAISS + BM25 vector store.
-3.  **Backend**: FastAPI server manages the RAG pipeline, document management CRUD, and SSE streaming.
-4.  **Frontend**: Clean Vanilla JS implementation with dynamic message animations and robust citation mapping.
+```bash
+pip install -r requirements.txt
+```
 
-## ⚙️ Quick Start
+Place PDFs in `data/pdfs/` or upload them from the app.
 
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Run
 
-2. **Prepare Data**:
-   Place financial PDFs in `data/pdfs/` or use the in-app **Upload** tool.
+```bash
+./run.sh
+```
 
-3. **Run the Terminal**:
-   ```bash
-   ./run.sh
-   ```
-   Access the interface at `http://localhost:8000`.
+Open `http://localhost:8000`.
 
-## 🔍 Optimization Protocols
+## Notes
 
-- **Retrieve-then-Rerank**: Initial 15-document retrieval refined to user-defined Top-K (default 3) to eliminate hallucinations.
-- **Verification Loop**: Every AI claim is cited; clicking a citation opens the exact PDF page in the Verification Panel.
-- **Persistence Layer**: Session titles auto-generate based on analysis context and persist across browser restarts.
+- Search results are reranked before generation.
+- Citations open the source PDF at the referenced page.
+- Session state is stored locally in the browser.
