@@ -461,7 +461,6 @@ document.getElementById('globalFileUpload')?.addEventListener('change', async (e
     }
 });
 
-const mainCanvas = document.getElementById('mainCanvas');
 const mainDropOverlay = document.getElementById('mainDropOverlay');
 if (mainCanvas && mainDropOverlay) {
     mainCanvas.addEventListener('dragover', (e) => {
