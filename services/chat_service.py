@@ -7,8 +7,9 @@ from typing import List, Dict, Any, AsyncGenerator
 import json
 import asyncio
 import logging
+import re
 
-from core.initialization import build_prompt
+from core.initialization import build_prompt, build_summary_prompt
 from embeddings.embedder import embed_query, rerank_results
 from vector_store.faiss_index import VectorStore
 from llm.generator import generate_answer
@@ -20,6 +21,14 @@ from config import (
 )
 
 logger = logging.getLogger(__name__)
+
+SUMMARY_PAGE_LIMIT = 12
+SUMMARY_TOTAL_LIMIT = 16
+SUMMARY_STOPWORDS = {
+    "about", "this", "that", "with", "from", "what", "file", "document",
+    "summarize", "summarise", "summary", "please", "there", "their", "would",
+    "could", "should", "into", "across", "under", "have", "has", "had"
+}
 
 
 class ChatService:
@@ -104,48 +113,80 @@ class ChatService:
         
         return search_results
     
-    def retrieve_all_document_chunks(self, doc_name: str) -> List[SearchResult]:
+    def _normalize_summary_text(self, text: str) -> str:
+        text = re.sub(r'^\[Document:.*?\]\s*', '', text or '')
+        text = re.sub(r'\s+', ' ', text).strip().lower()
+        return text
+
+    def _sample_evenly(self, items: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+        if len(items) <= limit:
+            return items
+        if limit <= 1:
+            return items[:1]
+
+        selected = []
+        seen = set()
+        for i in range(limit):
+            idx = round(i * (len(items) - 1) / (limit - 1))
+            chunk_id = items[idx]["chunk_id"]
+            if chunk_id in seen:
+                continue
+            selected.append(items[idx])
+            seen.add(chunk_id)
+        return selected
+
+    def retrieve_all_document_chunks(self, doc_name: str, query: str = None) -> List[SearchResult]:
         """
-        Retrieve all chunks for a specific document (used for summarization).
-        If document is large, sample chunks to provide a representative overview.
+        Retrieve representative chunks for a specific document (used for summarization).
+        Uses one primary chunk per page plus a few keyword-matching chunks to avoid
+        feeding heavily overlapping excerpts into the LLM.
         """
         logger.info(f"Retrieving chunks for document: {doc_name}")
-        
-        all_chunks = [
+
+        all_chunks = sorted([
             m for m in self.vector_store.metadata 
             if m.get("doc_name") == doc_name
-        ]
-        
-        # Limit to 50 chunks to avoid overwhelming the LLM
-        # If document is longer, sample from start, middle, and end
-        limit = 50
-        if len(all_chunks) > limit:
-            logger.info(f"Document {doc_name} has {len(all_chunks)} chunks. Sampling {limit} chunks for summarization.")
-            
-            # Take first 20 (Intro/Table of contents)
-            # Take middle 15 (Financials/Operations)
-            # Take last 15 (Risk/Footnotes)
-            start_chunks = all_chunks[:20]
-            
-            middle_start = len(all_chunks) // 2 - 7
-            middle_chunks = all_chunks[middle_start:middle_start + 15]
-            
-            end_chunks = all_chunks[-15:]
-            
-            # Combine and deduplicate just in case (though unlikely with these ranges)
-            sampled_chunks = start_chunks + middle_chunks + end_chunks
-            
-            # Deduplicate by chunk_id
-            seen_ids = set()
-            all_chunks = []
-            for chunk in sampled_chunks:
-                if chunk["chunk_id"] not in seen_ids:
-                    all_chunks.append(chunk)
-                    seen_ids.add(chunk["chunk_id"])
-        
+        ], key=lambda item: (item.get("page_number", 0), item.get("chunk_id", "")))
+
+        if not all_chunks:
+            return []
+
+        unique_page_chunks = []
+        seen_pages = set()
+        seen_texts = set()
+        for chunk in all_chunks:
+            page_number = chunk.get("page_number")
+            normalized = self._normalize_summary_text(chunk.get("text", ""))
+            if page_number in seen_pages or normalized in seen_texts:
+                continue
+            unique_page_chunks.append(chunk)
+            seen_pages.add(page_number)
+            seen_texts.add(normalized)
+
+        selected_chunks = self._sample_evenly(unique_page_chunks, SUMMARY_PAGE_LIMIT)
+
+        query_terms = []
+        if query:
+            query_terms = [
+                term for term in re.findall(r'[a-zA-Z]{4,}', query.lower())
+                if term not in SUMMARY_STOPWORDS
+            ]
+
+        if query_terms and len(selected_chunks) < SUMMARY_TOTAL_LIMIT:
+            selected_ids = {chunk["chunk_id"] for chunk in selected_chunks}
+            for chunk in all_chunks:
+                if chunk["chunk_id"] in selected_ids:
+                    continue
+                normalized = self._normalize_summary_text(chunk.get("text", ""))
+                if any(term in normalized for term in query_terms):
+                    selected_chunks.append(chunk)
+                    selected_ids.add(chunk["chunk_id"])
+                if len(selected_chunks) >= SUMMARY_TOTAL_LIMIT:
+                    break
+
         # Convert to SearchResult objects
         search_results = []
-        for res in all_chunks:
+        for res in selected_chunks:
             search_results.append(SearchResult(
                 doc_name=res['doc_name'],
                 doc_date=res.get('doc_date'),
@@ -191,6 +232,28 @@ class ChatService:
             results_dict.append(result_dict)
         
         return build_prompt(query, results_dict)
+
+    def build_summary_rag_prompt(self, query: str, doc_name: str, search_results: List[SearchResult]) -> str:
+        """Build a stronger prompt for document summarization queries."""
+        results_dict = []
+        for result in search_results:
+            result_dict = {
+                "doc_name": result.doc_name,
+                "doc_date": result.doc_date,
+                "page_number": result.page_number,
+                "chunk_id": result.chunk_id,
+                "text": result.text
+            }
+            if result.score is not None:
+                result_dict["score"] = result.score
+            if result.search_type is not None:
+                result_dict["search_type"] = result.search_type
+            if result.rerank_score is not None:
+                result_dict["rerank_score"] = result.rerank_score
+
+            results_dict.append(result_dict)
+
+        return build_summary_prompt(query, doc_name, results_dict)
     
     async def generate_answer_stream(
         self, 
@@ -231,9 +294,14 @@ class ChatService:
             List of citation dictionaries
         """
         citations = []
-        for i, result in enumerate(search_results, 1):
+        seen = set()
+        for result in search_results:
+            key = (result.doc_name, result.page_number)
+            if key in seen:
+                continue
+            seen.add(key)
             citations.append({
-                "ref": i,
+                "ref": len(citations) + 1,
                 "doc_name": result.doc_name,
                 "doc_date": result.doc_date or 'N/A',
                 "page": result.page_number,

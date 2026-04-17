@@ -13,6 +13,27 @@ class VectorStore:
         self.bm25 = None
         self.corpus_tokens = []
 
+    def _rebuild_bm25(self):
+        if self.metadata:
+            self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
+            self.bm25 = BM25Okapi(self.corpus_tokens)
+        else:
+            self.corpus_tokens = []
+            self.bm25 = None
+
+    def _remove_indices(self, indices_to_remove):
+        if not indices_to_remove:
+            return False
+
+        indices = sorted(set(indices_to_remove))
+        sel = faiss.IDSelectorBatch(np.array(indices, dtype="int64"))
+        self.index.remove_ids(sel)
+
+        removed = set(indices)
+        self.metadata = [m for i, m in enumerate(self.metadata) if i not in removed]
+        self._rebuild_bm25()
+        return True
+
     def _tokenize(self, text):
         return text.lower().split()
 
@@ -24,56 +45,42 @@ class VectorStore:
         self.metadata.extend(metadata_list)
         
         # Update BM25
-        self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
-        self.bm25 = BM25Okapi(self.corpus_tokens)
+        self._rebuild_bm25()
 
     def remove_document(self, doc_name):
         """Removes all chunks associated with a specific document from the index and metadata."""
         indices_to_remove = [i for i, m in enumerate(self.metadata) if m.get("doc_name") == doc_name]
-        
-        if not indices_to_remove:
-            return False
-            
-        # Remove from FAISS index
-        sel = faiss.IDSelectorBatch(indices_to_remove)
-        self.index.remove_ids(sel)
-        
-        # Remove from metadata
-        self.metadata = [m for i, m in enumerate(self.metadata) if i not in indices_to_remove]
-        
-        # Update BM25
-        if self.metadata:
-            self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
-            self.bm25 = BM25Okapi(self.corpus_tokens)
-        else:
-            self.corpus_tokens = []
-            self.bm25 = None
-            
-        return True
+        return self._remove_indices(indices_to_remove)
 
     def remove_session(self, session_id):
         """Removes all chunks associated with a specific session_id from the index and metadata."""
         indices_to_remove = [i for i, m in enumerate(self.metadata) if m.get("session_id") == session_id]
-        
-        if not indices_to_remove:
-            return False
-            
-        # Remove from FAISS index
-        sel = faiss.IDSelectorBatch(indices_to_remove)
-        self.index.remove_ids(sel)
-        
-        # Remove from metadata
-        self.metadata = [m for i, m in enumerate(self.metadata) if i not in indices_to_remove]
-        
-        # Update BM25
-        if self.metadata:
-            self.corpus_tokens = [self._tokenize(m["text"]) for m in self.metadata]
-            self.bm25 = BM25Okapi(self.corpus_tokens)
-        else:
-            self.corpus_tokens = []
-            self.bm25 = None
-            
-        return True
+        return self._remove_indices(indices_to_remove)
+
+    def prune_missing_documents(self, existing_doc_names):
+        """Remove any documents that are no longer present on disk."""
+        existing_doc_names = set(existing_doc_names)
+        stale_doc_names = {
+            m.get("doc_name") for m in self.metadata
+            if m.get("doc_name") not in existing_doc_names
+        }
+
+        if not stale_doc_names:
+            return []
+
+        indices_to_remove = [
+            i for i, m in enumerate(self.metadata)
+            if m.get("doc_name") in stale_doc_names
+        ]
+        if self._remove_indices(indices_to_remove):
+            return sorted(stale_doc_names)
+        return []
+
+    def clear(self):
+        """Reset the store to an empty index."""
+        self.index = faiss.IndexFlatIP(self.dim)
+        self.metadata = []
+        self._rebuild_bm25()
 
     def search_semantic(self, query_embedding, k=5, threshold=0.0, session_id=None, doc_name=None):
         query_embedding = np.array([query_embedding]).astype("float32")

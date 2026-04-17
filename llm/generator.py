@@ -2,14 +2,17 @@ import requests
 import json
 import logging
 import re
+import os
 from typing import Generator, Optional
 from config import LLAMA_SERVER_URL
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a precise analytical assistant. You will be provided with retrieved context chunks that suffer from a pipeline error: they are not grouped by their parent documents. 
-CRITICAL INSTRUCTION: You must aggressively deduplicate citations. Group all information by the source filename or document title. NEVER list the same document multiple times in your sources or citations. Cite the document exactly once, and if necessary, append the specific pages or chunk IDs within that single consolidated citation. 
-Be direct and avoid filler text."""
+SYSTEM_PROMPT = """You are a precise financial analyst.
+Answer directly and concisely using the retrieved context as evidence.
+Do not output a source list, citation table, repeated document names, or meta commentary.
+The app renders citations separately.
+If the context is insufficient, say what is missing."""
 
 
 def generate_answer(prompt: str, max_tokens: int = 1000, temperature: float = 0.1, history: list = None) -> Generator[str, None, None]:
@@ -61,6 +64,10 @@ def generate_answer(prompt: str, max_tokens: int = 1000, temperature: float = 0.
         "top_k": 40,
         "stream": True
     }
+
+    if os.getenv("FINCHAT_LLM_OFFLINE") == "1":
+        yield "FinChat is running in offline mode because the LLM server is not available. Start llama-server on port 8080 to enable chat generation."
+        return
 
     try:
         logger.info(f"Sending request to LLAMA_SERVER_URL: {LLAMA_SERVER_URL}")

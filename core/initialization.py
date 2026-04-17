@@ -38,7 +38,29 @@ def build_prompt(query, retrieved_results):
     from llm.context_builder import build_context
     
     context = build_context(retrieved_results)
-    return f"{query}\n\nContext Chunks:\n{context}"
+    return (
+        "Answer the user directly using the context below. "
+        "Do not generate your own source list or repeat the same document multiple times. "
+        "The app will show citations separately.\n\n"
+        f"User question:\n{query}\n\n"
+        f"Context:\n{context}"
+    )
+
+
+def build_summary_prompt(query, doc_name, retrieved_results):
+    """Build a stronger summarization prompt for document overview questions."""
+    from llm.context_builder import build_context
+
+    context = build_context(retrieved_results)
+    return (
+        f"Summarize the document `{doc_name}` for a user who has not read it. "
+        "Explain what the file is about in a clear, substantive way. "
+        "Start with 1 short paragraph, then provide 3-6 bullet points covering the main topics, "
+        "business/issuer context, important financial themes, major risks, and any debt or liquidity discussion if present. "
+        "Do not say 'Okay' or give a one-line acknowledgement. Do not output a source list.\n\n"
+        f"Original user question:\n{query}\n\n"
+        f"Context:\n{context}"
+    )
 
 
 from core.progress import set_progress
@@ -65,10 +87,14 @@ def initialize_system() -> Tuple[VectorStore, int, int]:
         set_progress("indexing", "Scanning data directory...", 10)
         status.update("[bold blue]Scanning data directory...")
         pdf_files = glob.glob(os.path.join(PDF_DIR, "*.pdf"))
+        current_docs = {os.path.basename(f) for f in pdf_files}
         if not pdf_files:
             console.print(f"[bold yellow]Warning:[/bold yellow] No PDFs found in {PDF_DIR}, starting with empty store.")
+            empty_store = VectorStore(EMBEDDING_DIM)
+            if os.path.exists(INDEX_PATH) or os.path.exists(METADATA_PATH):
+                empty_store.save(INDEX_PATH, METADATA_PATH)
             set_progress("idle", "System ready.", 100)
-            return VectorStore(EMBEDDING_DIM), 0, 0
+            return empty_store, 0, 0
 
         # 3. Indexing Logic
         vector_store = None
@@ -80,10 +106,16 @@ def initialize_system() -> Tuple[VectorStore, int, int]:
             vector_store = VectorStore(EMBEDDING_DIM)
             if vector_store.load(INDEX_PATH, METADATA_PATH):
                 indexed_docs = {m["doc_name"] for m in vector_store.metadata}
-                current_docs = {os.path.basename(f) for f in pdf_files}
                 if indexed_docs != current_docs:
-                    status.update("[bold yellow]Change detected. Rebuilding index...")
-                    FORCE_REBUILD = True
+                    if current_docs.issubset(indexed_docs):
+                        removed_docs = vector_store.prune_missing_documents(current_docs)
+                        if removed_docs:
+                            status.update("[bold yellow]Removed missing PDFs from index...")
+                            vector_store.save(INDEX_PATH, METADATA_PATH)
+                        num_chunks = len(vector_store.metadata)
+                    else:
+                        status.update("[bold yellow]Change detected. Rebuilding index...")
+                        FORCE_REBUILD = True
                 else:
                     status.update("[bold green]Found existing index. Skipping rebuild...")
                     num_chunks = len(vector_store.metadata)

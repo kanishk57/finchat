@@ -5,11 +5,13 @@ Handles all chat-related endpoints
 
 from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import json
 import asyncio
 import logging
-from typing import List
+import datetime
+import re
+from typing import List, Optional
 
 from services.chat_service import ChatService
 from vector_store.faiss_index import VectorStore
@@ -31,8 +33,9 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str
-    session_id: str = None
-    history: List[ChatMessage] = []
+    session_id: Optional[str] = None
+    history: List[ChatMessage] = Field(default_factory=list)
+    doc_target: Optional[str] = None
 
 class ExportRequest(BaseModel):
     title: str
@@ -59,12 +62,76 @@ def initialize_services():
         chat_service = ChatService(vector_store)
         logger.info(f"System initialized! Loaded {num_files} files with {num_chunks} chunks.")
 
+
+def _parse_doc_date(value: str):
+    if not value or value == "UNKNOWN":
+        return None
+    for fmt in ("%b %d, %Y", "%B %d, %Y"):
+        try:
+            return datetime.datetime.strptime(value.title(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _select_latest_doc_name(metadata, session_id: str = None):
+    latest_doc = None
+    latest_date = None
+
+    for item in metadata:
+        item_session = item.get("session_id")
+        if session_id and item_session and item_session != session_id:
+            continue
+
+        doc_name = item.get("doc_name")
+        if not doc_name:
+            continue
+
+        parsed_date = _parse_doc_date(item.get("doc_date"))
+        if parsed_date is None:
+            continue
+
+        if latest_date is None or parsed_date >= latest_date:
+            latest_doc = doc_name
+            latest_date = parsed_date
+
+    if latest_doc:
+        return latest_doc
+
+    # Fall back to the most recently seen document in the current scope.
+    for item in reversed(metadata):
+        item_session = item.get("session_id")
+        if session_id and item_session and item_session != session_id:
+            continue
+        doc_name = item.get("doc_name")
+        if doc_name:
+            return doc_name
+
+    return None
+
+
+def _resolve_document_mention(query: str, known_docs):
+    for doc in sorted(list(known_docs), key=len, reverse=True):
+        doc_no_ext = doc.replace('.pdf', '')
+        mention_with_ext = f"@{doc}"
+        mention_without_ext = f"@{doc_no_ext}"
+
+        if re.search(rf"{re.escape(mention_with_ext)}\b", query, flags=re.IGNORECASE):
+            cleaned = re.sub(rf"{re.escape(mention_with_ext)}\b", '', query, flags=re.IGNORECASE).strip()
+            return doc, cleaned
+        if re.search(rf"{re.escape(mention_without_ext)}\b", query, flags=re.IGNORECASE):
+            cleaned = re.sub(rf"{re.escape(mention_without_ext)}\b", '', query, flags=re.IGNORECASE).strip()
+            return doc, cleaned
+
+    return None, query
+
 @router.post("")
 async def chat_endpoint(request: ChatRequest):
     """Main chat endpoint for processing user queries"""
     query = request.query
     session_id = request.session_id
     history = request.history
+    doc_target = request.doc_target
     
     # Ensure services are initialized
     if vector_store is None or chat_service is None:
@@ -72,6 +139,9 @@ async def chat_endpoint(request: ChatRequest):
         
     # Extract file mention (@filename) intelligently by checking known docs
     doc_name_filter = None
+    summarize_keywords = ["summarize", "summarise", "summary", "recap", "tl;dr", "what is this", "what is the content", "about this file", "what's in this"]
+    is_summarize = any(word in query.lower() for word in summarize_keywords)
+
     if vector_store and '@' in query:
         # Get unique document names from vector store metadata
         # Also filter by session_id to only check relevant docs
@@ -80,25 +150,29 @@ async def chat_endpoint(request: ChatRequest):
             item_session = m.get("session_id")
             if not session_id or not item_session or item_session == session_id:
                 known_docs.add(m.get("doc_name"))
-                
-        # Sort by length descending to match longest names first
-        for doc in sorted(list(known_docs), key=len, reverse=True):
-            # Check for exact @doc_name (with or without .pdf extension in the query)
-            doc_no_ext = doc.replace('.pdf', '')
-            mention_with_ext = f"@{doc}"
-            mention_without_ext = f"@{doc_no_ext}"
-            
-            if mention_with_ext.lower() in query.lower():
-                doc_name_filter = doc
-                # Case-insensitive replacement
-                import re
-                query = re.sub(re.escape(mention_with_ext), '', query, flags=re.IGNORECASE).strip()
-                break
-            elif mention_without_ext.lower() in query.lower():
-                doc_name_filter = doc
-                import re
-                query = re.sub(re.escape(mention_without_ext), '', query, flags=re.IGNORECASE).strip()
-                break
+
+        doc_name_filter, query = _resolve_document_mention(query, known_docs)
+
+    if is_summarize and not doc_name_filter and vector_store:
+        scoped_docs = []
+        seen_docs = set()
+        for item in vector_store.metadata:
+            item_session = item.get("session_id")
+            if session_id and item_session and item_session != session_id:
+                continue
+            doc_name = item.get("doc_name")
+            if doc_name and doc_name not in seen_docs:
+                scoped_docs.append(doc_name)
+                seen_docs.add(doc_name)
+
+        summary_hints = ("latest", "newest", "recent", "last", "this file", "this document", "the filing")
+        if len(scoped_docs) == 1 or any(hint in query.lower() for hint in summary_hints):
+            doc_name_filter = _select_latest_doc_name(vector_store.metadata, session_id=session_id)
+
+    if doc_target == "latest" and vector_store:
+        doc_name_filter = _select_latest_doc_name(vector_store.metadata, session_id=session_id)
+        if doc_name_filter:
+            logger.info(f"Explicit latest-document target selected: {doc_name_filter}")
                 
     if doc_name_filter:
         logger.info(f"File mention detected. Filtering search to: {doc_name_filter}")
@@ -111,18 +185,13 @@ async def chat_endpoint(request: ChatRequest):
         temperature=current_settings.temperature
     )
     
-    # Retrieve relevant documents
-    # Detect summarization intent (e.g. "summarize", "summarise", "summary", "tl;dr")
-    summarize_keywords = ["summarize", "summarise", "summary", "recap", "tl;dr", "what is this", "what is the content", "about this file", "what's in this"]
-    is_summarize = any(word in query.lower() for word in summarize_keywords)
-    
     # Special case: very short queries with a file mention are usually asking "what is this"
     if doc_name_filter and len(query.strip()) < 10:
         is_summarize = True
         
     if is_summarize and doc_name_filter:
         logger.info(f"Summarization intent detected for {doc_name_filter}. Retrieving all chunks.")
-        search_results = chat_service.retrieve_all_document_chunks(doc_name_filter)
+        search_results = chat_service.retrieve_all_document_chunks(doc_name_filter, query=query)
     else:
         search_results = chat_service.retrieve_relevant_documents(query, session_id=session_id, doc_name=doc_name_filter)
     
@@ -136,7 +205,10 @@ async def chat_endpoint(request: ChatRequest):
         return StreamingResponse(mock_stream(), media_type="text/event-stream")
 
     # Build RAG prompt
-    prompt = chat_service.build_rag_prompt(query, search_results)
+    if is_summarize and doc_name_filter:
+        prompt = chat_service.build_summary_rag_prompt(query, doc_name_filter, search_results)
+    else:
+        prompt = chat_service.build_rag_prompt(query, search_results)
 
     # Format citations for the frontend
     citations = chat_service.format_citations(search_results)

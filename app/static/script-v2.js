@@ -57,6 +57,7 @@ let sidebarSearchTerm = '';
 let serverReachable = false;
 
 const messageCitationsMap = new Map();
+const CITATION_DROPDOWN_THRESHOLD = 5;
 
 let chatSessions = [];
 let currentSessionId = null;
@@ -213,6 +214,21 @@ function showToast(message) {
     }, 2600);
 }
 
+function formatErrorMessage(value) {
+    if (value == null) return 'Unknown error occurred.';
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => formatErrorMessage(item))
+            .filter(Boolean)
+            .join('; ') || 'Unknown error occurred.';
+    }
+    if (typeof value === 'object') {
+        return value.message || value.detail || JSON.stringify(value);
+    }
+    return String(value);
+}
+
 function scrollChatToBottom(behavior = 'smooth') {
     chatContainerWrapper.scrollTo({ top: chatContainerWrapper.scrollHeight, behavior });
 }
@@ -239,6 +255,65 @@ function renderAssistantContent(text) {
         .split('\n\n')
         .map((paragraph) => `<p class="mb-4">${paragraph.replace(/\n/g, '<br>')}</p>`)
         .join('');
+}
+
+function renderThinkingState(label = 'Thinking', detail = 'Reading documents and drafting a response...') {
+    return `
+        <div class="flex items-center gap-3 rounded-2xl border border-[#2f3032] bg-[#202123] px-4 py-3 text-sm text-[#c4c7c5] animate-pulse">
+            <span class="material-symbols-outlined text-[18px] text-[#F43F5E]">hourglass_top</span>
+            <div class="min-w-0">
+                <div class="font-medium text-white">${escapeHtml(label)}</div>
+                <div class="text-xs text-[#8c9197]">${escapeHtml(detail)}</div>
+            </div>
+        </div>
+    `;
+}
+
+function setThinkingState(container, label, detail) {
+    container.dataset.thinking = 'true';
+    container.innerHTML = renderThinkingState(label, detail);
+}
+
+function clearThinkingState(container) {
+    if (container.dataset.thinking === 'true') {
+        container.dataset.thinking = 'false';
+        container.innerHTML = '';
+    }
+}
+
+function createCitationButton(citation, msgId, variant = 'chip') {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.dataset.ref = String(citation.ref);
+    chip.dataset.msgId = msgId;
+
+    if (variant === 'dropdown') {
+        chip.className = 'flex h-full w-full items-start gap-2 rounded-2xl border border-[#2f3032] bg-[#202123] px-3 py-2.5 text-left text-xs text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:bg-[#262729]';
+    } else {
+        chip.className = 'flex items-center gap-2 rounded-full border border-[#2f3032] bg-[#202123] px-3 py-1.5 text-xs text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:bg-[#262729]';
+    }
+
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined text-[14px] text-[#F43F5E]';
+    icon.textContent = 'description';
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'min-w-0 flex-1';
+
+    const name = document.createElement('div');
+    name.className = 'truncate font-medium text-white';
+    name.textContent = citation.doc_name;
+
+    const meta = document.createElement('div');
+    meta.className = 'mt-0.5 text-[10px] text-[#8c9197]';
+    meta.textContent = `Page ${citation.page}`;
+
+    textWrap.appendChild(name);
+    textWrap.appendChild(meta);
+
+    chip.appendChild(icon);
+    chip.appendChild(textWrap);
+    return chip;
 }
 
 function createMessageElement(role) {
@@ -282,35 +357,54 @@ function buildCitationsHTML(citations, msgId, container) {
     const shell = document.createElement('div');
     shell.className = 'mt-5 border-t border-[#2c2d2f] pt-4';
 
-    const label = document.createElement('div');
-    label.className = 'mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#768390]';
-    label.textContent = 'Sources';
-    shell.appendChild(label);
+    if (citations.length > CITATION_DROPDOWN_THRESHOLD) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'citation-dropdown-toggle flex w-full items-center justify-between gap-3 rounded-2xl border border-[#2f3032] bg-[#202123] px-4 py-3 text-left transition-colors hover:border-[#F43F5E] hover:bg-[#262729]';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.innerHTML = `
+            <div>
+                <div class="text-[10px] font-bold uppercase tracking-[0.18em] text-[#768390]">Sources</div>
+                <div class="mt-1 text-xs text-[#c4c7c5]">${citations.length} citations available</div>
+            </div>
+            <span class="material-symbols-outlined text-[18px] text-[#F43F5E] transition-transform duration-200">expand_more</span>
+        `;
 
-    const chipGroup = document.createElement('div');
-    chipGroup.className = 'flex flex-wrap gap-2';
+        const menu = document.createElement('div');
+        menu.className = 'citation-dropdown-menu mt-3 hidden max-h-72 overflow-y-auto rounded-3xl border border-[#2f3032] bg-[#171819] p-2 shadow-2xl shadow-black/20';
+        menu.style.display = 'grid';
+        menu.style.gap = '0.5rem';
+        menu.style.gridTemplateColumns = 'repeat(auto-fit, minmax(220px, 1fr))';
 
-    citations.forEach((citation) => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'flex items-center gap-2 rounded-full border border-[#2f3032] bg-[#202123] px-3 py-1.5 text-xs text-[#e3e3e3] transition-colors hover:border-[#F43F5E] hover:bg-[#262729]';
-        chip.dataset.ref = String(citation.ref);
-        chip.dataset.msgId = msgId;
+        citations.forEach((citation) => {
+            menu.appendChild(createCitationButton(citation, msgId, 'dropdown'));
+        });
 
-        const icon = document.createElement('span');
-        icon.className = 'material-symbols-outlined text-[14px] text-[#F43F5E]';
-        icon.textContent = 'description';
+        toggle.addEventListener('click', () => {
+            const isHidden = menu.classList.contains('hidden');
+            menu.classList.toggle('hidden');
+            toggle.setAttribute('aria-expanded', String(isHidden));
+            toggle.querySelector('.material-symbols-outlined')?.classList.toggle('rotate-180', isHidden);
+        });
 
-        const name = document.createElement('span');
-        name.className = 'max-w-[160px] truncate';
-        name.textContent = citation.doc_name;
+        shell.appendChild(toggle);
+        shell.appendChild(menu);
+    } else {
+        const label = document.createElement('div');
+        label.className = 'mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#768390]';
+        label.textContent = 'Sources';
+        shell.appendChild(label);
 
-        chip.appendChild(icon);
-        chip.appendChild(name);
-        chipGroup.appendChild(chip);
-    });
+        const chipGroup = document.createElement('div');
+        chipGroup.className = 'flex flex-wrap gap-2';
 
-    shell.appendChild(chipGroup);
+        citations.forEach((citation) => {
+            chipGroup.appendChild(createCitationButton(citation, msgId, 'chip'));
+        });
+
+        shell.appendChild(chipGroup);
+    }
+
     container.appendChild(shell);
 }
 
@@ -346,7 +440,7 @@ function openVerification(ref, msgId) {
 
 window.showVerification = openVerification;
 
-function saveCurrentChat() {
+function saveCurrentChat(refreshUi = true) {
     const session = getCurrentSession();
     if (!session) return;
 
@@ -359,8 +453,10 @@ function saveCurrentChat() {
 
     session.updatedAt = Date.now();
     persistSessions();
-    renderSidebarSessions();
-    updateTopLevelStatus();
+    if (refreshUi) {
+        renderSidebarSessions();
+        updateTopLevelStatus();
+    }
 }
 
 function renderSidebarSessions() {
@@ -918,6 +1014,8 @@ async function submitChat(event) {
     event.preventDefault();
     const query = queryInput.value.trim();
     if (!query) return;
+    const docTarget = queryInput.dataset.docTarget || null;
+    delete queryInput.dataset.docTarget;
 
     const session = getCurrentSession();
     if (!session) return;
@@ -943,7 +1041,9 @@ async function submitChat(event) {
     const aiMsgId = generateId();
     const aiMessage = createMessageElement('assistant');
     aiMessage.messageDiv.setAttribute('data-message-id', aiMsgId);
+    setThinkingState(aiMessage.content, 'Thinking', 'Reading documents and drafting a response...');
     chatContainer.appendChild(aiMessage.messageDiv);
+    saveCurrentChat(false);
     scrollChatToBottom();
 
     const history = session.messages
@@ -955,12 +1055,12 @@ async function submitChat(event) {
         const response = await fetch('/api/v1/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, session_id: currentSessionId, history })
+            body: JSON.stringify({ query, session_id: currentSessionId, history, doc_target: docTarget })
         });
 
         if (!response.ok || !response.body) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `Server error: ${response.status}`);
+            throw new Error(formatErrorMessage(errorData.detail) || `Server error: ${response.status}`);
         }
 
         serverReachable = true;
@@ -988,9 +1088,12 @@ async function submitChat(event) {
                     const data = JSON.parse(payload);
                     if (data.type === 'citations') {
                         buildCitationsHTML(data.citations, aiMsgId, aiMessage.sourceList);
+                        saveCurrentChat(false);
                     } else if (data.content) {
+                        clearThinkingState(aiMessage.content);
                         fullText += data.content;
                         aiMessage.content.innerHTML = renderAssistantContent(fullText);
+                        saveCurrentChat(false);
                         scrollChatToBottom('auto');
                     }
                 } catch (error) {
@@ -1003,12 +1106,14 @@ async function submitChat(event) {
         renderChatArea();
     } catch (error) {
         console.error('Chat Error', error);
+        const message = formatErrorMessage(error?.message ?? error);
         aiMessage.content.innerHTML = `
             <div class="flex items-center gap-2 rounded-2xl border border-[#ff4b4b44] bg-[#3d1313] p-3 text-[13px] text-[#ff8b8b]">
                 <span class="material-symbols-outlined text-[18px]">error</span>
-                <span><strong>Execution Error:</strong> ${escapeHtml(error.message || 'Unknown error occurred.')}</span>
+                <span><strong>Execution Error:</strong> ${escapeHtml(message)}</span>
             </div>
         `;
+        saveCurrentChat(false);
         serverReachable = false;
         setModelStatus('Offline', 'error');
     } finally {
@@ -1200,12 +1305,25 @@ function setupEventListeners() {
         const chip = event.target.closest('[data-ref][data-msg-id]');
         if (!chip) return;
         openVerification(Number(chip.dataset.ref), chip.dataset.msgId);
+        document.querySelectorAll('.citation-dropdown-menu').forEach((menu) => {
+            menu.classList.add('hidden');
+        });
+        document.querySelectorAll('.citation-dropdown-toggle[aria-expanded="true"]').forEach((toggle) => {
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.querySelector('.material-symbols-outlined')?.classList.remove('rotate-180');
+        });
     });
 
     document.querySelectorAll('.welcome-card').forEach((card) => {
         card.addEventListener('click', () => {
             const query = card.getAttribute('data-query');
             if (!query) return;
+            const docTarget = card.getAttribute('data-doc-target');
+            if (docTarget) {
+                queryInput.dataset.docTarget = docTarget;
+            } else {
+                delete queryInput.dataset.docTarget;
+            }
             queryInput.value = query;
             autoResizeTextarea();
             submitBtn.click();

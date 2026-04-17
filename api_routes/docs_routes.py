@@ -140,7 +140,9 @@ async def _reinitialize_system():
     """Background task to reinitialize the system"""
     # Import here to avoid circular imports
     from core.initialization import initialize_system
+    from services.chat_service import ChatService
     import asyncio
+    import api_routes.chat_routes as chat_routes_module
     from api_routes.vector_store_ref import set_vector_store
     
     loop = asyncio.get_event_loop()
@@ -148,5 +150,6 @@ async def _reinitialize_system():
     
     if vector_store:
         set_vector_store(vector_store)
+        chat_routes_module.set_services(vector_store, ChatService(vector_store))
         
     logger.info(f"System re-initialized! Loaded {num_files} files with {num_chunks} chunks.")
