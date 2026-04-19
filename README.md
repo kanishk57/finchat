@@ -39,3 +39,25 @@ Open `http://localhost:8000`.
 - Search results are reranked before generation.
 - Citations open the source PDF at the referenced page.
 - Session state is stored locally in the browser.
+
+## Screenshots
+
+**1. Workspace & Analysis**  
+![Workspace Analysis](assets/screenshots/1-new-analysis.png)
+
+**2. Query in Progress**  
+![Query Processing](assets/screenshots/2-answering-query.png)
+
+**3. Portfolio Stats**  
+![Portfolio Stats](assets/screenshots/3-portfolio-stats.png)
+
+**4. Retrieved Citations**  
+![Answer with Citations](assets/screenshots/4-answered-query.png)
+
+**5. PDF Context Integration**  
+![PDF Context Modal](assets/screenshots/5-citation-context.png)
+
+## Contributors
+
+- [Armaan Choudhary](https://github.com/armaan-choudhary)
+- [Kanishk Dhiman](https://github.com/kanishk57)
