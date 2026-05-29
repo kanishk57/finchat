@@ -111,9 +111,20 @@ Open `http://localhost:8000` in your web browser.
 
 Here is the interface breakdown showing document ingestion and cited generation capabilities:
 
-1. **Workspace & Analysis Setup**: Dynamic dashboard displaying ingestion stats and folder uploads.
-2. **Query Processing**: Responsive status indicator highlighting the generation progress.
-3. **Interactive PDF Citations**: Clicking an inline citation highlights the source text and displays the PDF viewer at the exact referenced page.
+**1. Workspace & Analysis Setup**  
+![Workspace Analysis](assets/screenshots/1-new-analysis.png)
+
+**2. Query Processing**  
+![Query Processing](assets/screenshots/2-answering-query.png)
+
+**3. Portfolio Stats**  
+![Portfolio Stats](assets/screenshots/3-portfolio-stats.png)
+
+**4. Retrieved Citations**  
+![Answer with Citations](assets/screenshots/4-answered-query.png)
+
+**5. PDF Context Integration**  
+![PDF Context Modal](assets/screenshots/5-citation-context.png)
 
 ---
 
